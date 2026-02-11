@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLL Timer Ingeniera Soy</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100vh;
+            background-color: #000000;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+        }
+
+        /* Modo reposo */
+        .container.idle {
+            height: 100vh;
+            flex-direction: column;
+            justify-content: center;
+            align-items: stretch;
+            padding: 20px;
+            background-color: transparent;
+        }
+
+        /* Modo pantalla completa */
+        .container.fullscreen {
+            height: 100%;
+            justify-content: center;
+            align-items: center;
+            gap: 40px;
+            background-color: #000000;
+            flex-direction: column;
+        }
+
+        /* Modo ejecución */
+        .container.running {
+            height: 100%;
+            justify-content: center;
+            align-items: center;
+            gap: 40px;
+            background-color: #000000;
+            flex-direction: column;
+        }
+
+        .idle-container {
+            width: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .container.idle .idle-container {
+            display: flex !important;
+        }
+
+        .container.fullscreen .idle-container {
+            display: flex !important;
+        }
+
+        .timer-idle {
+            font-size: 8vw;
+            color: #00ff00;
+            font-weight: bold;
+            font-variant-numeric: tabular-nums;
+            display: none;
+            transition: color 0.3s ease;
+        }
+
+        .timer-idle.warning-30 {
+            color: #ff8800;
+        }
+
+        .timer-idle.warning-10 {
+            color: #ff0000;
+        }
+
+        .container.idle .timer-idle {
+            display: none;
+        }
+
+        .timer {
+            font-size: 20vw;
+            color: #00ff00;
+            font-weight: bold;
+            font-variant-numeric: tabular-nums;
+            text-align: center;
+            line-height: 1;
+            display: none;
+            transition: color 0.3s ease;
+        }
+
+        .timer.warning-30 {
+            color: #ff8800;
+        }
+
+        .timer.warning-10 {
+            color: #ff0000;
+        }
+
+        .container.fullscreen .timer,
+        .container.running .timer {
+            display: block;
+            font-size: 32vw;
+        }
+
+        .button-container {
+            display: flex !important;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .idle-button-container {
+            flex-grow: 0;
+            width: 100%;
+            display: flex;
+        }
+
+        .container.fullscreen .idle-button-container,
+        .container.running .idle-button-container {
+            display: none !important;
+        }
+
+        .help-link {
+            color: #aaaaaa;
+            font-size: clamp(10px, 1.5vw, 18px);
+            text-decoration: underline;
+            cursor: pointer;
+            text-align: center;
+            margin-top: 3px;
+        }
+
+        .help-link:hover {
+            color: #ffffff;
+        }
+
+        .container.fullscreen .help-link,
+        .container.running .help-link {
+            display: none !important;
+        }
+
+        .fullscreen-button-container {
+            flex-grow: 1;
+            display: none;
+        }
+
+        .container.fullscreen .fullscreen-button-container,
+        .container.running .fullscreen-button-container {
+            display: flex;
+        }
+
+        #startButton, #startButtonFullscreen {
+            padding: 15px 30px;
+            font-size: 2vw;
+            background-color: #ff0000;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            display: inline-block;
+            visibility: visible;
+        }
+
+        #startButton {
+            padding: clamp(8px, 2vw, 20px) 0;
+            font-size: clamp(16px, 3vw, 48px);
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        #startButtonFullscreen {
+            padding: 15px 30px;
+            font-size: 2vw;
+        }
+
+        #startButton:hover, #startButtonFullscreen:hover {
+            background-color: #cc0000;
+            transform: scale(1.05);
+        }
+
+        #startButton:active, #startButtonFullscreen:active {
+            transform: scale(0.95);
+        }
+
+        #startButton.hidden, #startButtonFullscreen.hidden {
+            display: none;
+        }
+
+        .control-container {
+            display: none;
+            width: 100%;
+            max-width: 32vw;
+            padding: 5px 0;
+            box-sizing: border-box;
+            margin: 0 auto;
+            flex-direction: column;
+            align-self: center;
+        }
+
+        .container.fullscreen .control-container,
+        .container.running .control-container {
+            display: flex;
+        }
+
+        .logos-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            gap: 25px;
+            margin-top: 10px;
+            align-self: center;
+            justify-content: center;
+        }
+
+        .logo-left {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+        }
+
+        .fullscreen-button-container {
+            flex: 0 0 auto;
+            display: none;
+            justify-content: center;
+        }
+
+        .logo-right {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+        }
+
+        .logos-container img {
+            max-height: 150px;
+            max-width: 300px;
+            object-fit: contain;
+        }
+
+        .logo-left {
+            flex: 0 0 auto;
+        }
+
+        .logo-right {
+            flex: 0 0 auto;
+            margin-left: auto;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container idle" id="container">
+        <div class="idle-container">
+            <div class="timer-idle" id="timerIdle">0:10</div>
+            <div class="button-container idle-button-container">
+                <button id="startButton">Temporizador</button>
+            </div>
+            <a href="#" id="helpLink" class="help-link">Como usar</a>
+        </div>
+        <div class="timer" id="timer">0:10</div>
+        <div class="control-container">
+            <div class="logos-container">
+                <div class="logo-left">
+                    <img src="isoy-tr-brgh-768x178.png" alt="ISO Logo">
+                </div>
+                <div class="button-container fullscreen-button-container">
+                    <button id="startButtonFullscreen">First Lego League ...</button>
+                </div>
+                <div class="logo-right">
+                    <img src="FIRSTLego-SPAIN-logo-small.png" alt="FIRST Lego Spain Logo">
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <audio id="chargerSound" src="sounds/charger.mp3"></audio>
+    <audio id="Sound10" src="sounds/_Diez.mp3"></audio>
+    <audio id="Sound9" src="sounds/_Nueve.mp3"></audio>
+    <audio id="Sound8" src="sounds/_Ocho.mp3"></audio>
+    <audio id="Sound7" src="sounds/_Siete.mp3"></audio>
+    <audio id="Sound6" src="sounds/_Seis.mp3"></audio>
+    <audio id="Sound5" src="sounds/_Cinco.mp3"></audio>
+    <audio id="Sound4" src="sounds/_Cuatro.mp3"></audio>
+    <audio id="Sound3" src="sounds/_Tres.mp3"></audio>
+    <audio id="Sound2" src="sounds/_Dos.mp3"></audio>
+    <audio id="Sound1" src="sounds/_Uno.mp3"></audio>
+    <audio id="Sound30" src="sounds/30seg.mp3"></audio>
+    <audio id="Sound1m" src="sounds/1min.mp3"></audio>
+    <audio id="Sound2m" src="sounds/2min.mp3"></audio>
+    <audio id="buzzerSound" src="sounds/buzzer.mp3"></audio>
+
+    <script>
+        const TOTAL_TIME = 150; // 2 minutos y 30  segundos
+        const WARNING_TIME10 = 11; // Sonido segundos
+        const WARNING_TIME9 = 9; // Sonido segundos
+        const WARNING_TIME8 = 8; // Sonido segundos
+        const WARNING_TIME7 = 7; // Sonido segundos
+        const WARNING_TIME6 = 6; // Sonido segundos
+        const WARNING_TIME5 = 5; // Sonido segundos
+        const WARNING_TIME4 = 4; // Sonido segundos
+        const WARNING_TIME3 = 3; // Sonido segundos
+        const WARNING_TIME2 = 2; // Sonido segundos
+        const WARNING_TIME1 = 1; // Sonido segundos
+        const WARNING_TIME30 = 30; // Sonido 30 segundos
+        const WARNING_TIME1m = 60; // Sonido minuto
+        const WARNING_TIME2m = 120; // Sonido 2 minutos
+        const END_DISPLAY_TIME = 30; // Mostrar 0:00 durante 5 segundos
+
+        let timeRemaining = TOTAL_TIME;
+        let isRunning = false;
+        let timerInterval = null;
+        let laserPlayed = false;
+        let endingPhase = false;
+
+        const timerDisplay = document.getElementById('timer');
+        const timerIdle = document.getElementById('timerIdle');
+        const startButton = document.getElementById('startButton');
+        const startButtonFullscreen = document.getElementById('startButtonFullscreen');
+        const chargerSound = document.getElementById('chargerSound');
+        const Sound30 = document.getElementById('Sound30');
+        const Sound10 = document.getElementById('Sound10');
+        const Sound9 = document.getElementById('Sound9');
+        const Sound8 = document.getElementById('Sound8');
+        const Sound7 = document.getElementById('Sound7');
+        const Sound6 = document.getElementById('Sound6');
+        const Sound5 = document.getElementById('Sound5');
+        const Sound4 = document.getElementById('Sound4');
+        const Sound3 = document.getElementById('Sound3');
+        const Sound2 = document.getElementById('Sound2');
+        const Sound1 = document.getElementById('Sound1');
+        const Sound2m = document.getElementById('Sound2m');
+        const Sound1m = document.getElementById('Sound1m');
+        const buzzerSound = document.getElementById('buzzerSound');
+        const container = document.getElementById('container');
+
+        let shouldPreventUnload = false;
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateDisplay() {
+            timerDisplay.textContent = formatTime(timeRemaining);
+            timerIdle.textContent = formatTime(timeRemaining);
+            
+            // Actualizar colores según el tiempo restante
+            if (timeRemaining <= 10) {
+                timerDisplay.classList.remove('warning-30');
+                timerDisplay.classList.add('warning-10');
+                timerIdle.classList.remove('warning-30');
+                timerIdle.classList.add('warning-10');
+            } else if (timeRemaining <= 30) {
+                timerDisplay.classList.remove('warning-10');
+                timerDisplay.classList.add('warning-30');
+                timerIdle.classList.remove('warning-10');
+                timerIdle.classList.add('warning-30');
+            } else {
+                timerDisplay.classList.remove('warning-30', 'warning-10');
+                timerIdle.classList.remove('warning-30', 'warning-10');
+            }
+        }
+
+        function enterFullscreenMode() {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.log('Error al entrar en pantalla completa:', err);
+            });
+            container.classList.add('fullscreen');
+            container.classList.remove('idle');
+            startButtonFullscreen.removeEventListener('click', enterFullscreenMode);
+            startButtonFullscreen.addEventListener('click', startTimer);
+        }
+
+        function startTimer() {
+            startButton.classList.add('hidden');
+            startButtonFullscreen.classList.add('hidden');
+            container.classList.remove('idle');
+            container.classList.remove('fullscreen');
+            container.classList.add('running');
+            isRunning = true;
+            Played1m = false;
+            Played2m = false;
+            Played10 = false;
+            Played9 = false;
+            Played8 = false;
+            Played7 = false;
+            Played6 = false;
+            Played5 = false;
+            Played4 = false;
+            Played3 = false;
+            Played2 = false;
+            Played1 = false;
+            Played30 = false;
+            
+            chargerSound.currentTime = 0;
+            chargerSound.play().catch(e => console.log('Error reproduciendo Charger:', e));
+
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                updateDisplay();
+
+                if (timeRemaining === WARNING_TIME30 && !Played30) {
+                    Played30 = true;
+                    Sound30.currentTime = 0;
+                    Sound30.play().catch(e => console.log('Error reproduciendo:', e));
+                }
+                if (timeRemaining === WARNING_TIME10 && !Played10) {
+                    Played10 = true;
+                    Sound10.currentTime = 0;
+                    Sound10.play().catch(e => console.log('Error reproduciendo:', e));
+                }
+                if (timeRemaining === WARNING_TIME9 && !Played9) {
+                    Played9 = true;
+                    Sound9.currentTime = 0;
+                    Sound9.play().catch(e => console.log('Error reproduciendo:', e));
+                }
+                if (timeRemaining === WARNING_TIME8 && !Played8) {
+                    Played8 = true;
+                    Sound8.currentTime = 0;
+                    Sound8.play().catch(e => console.log('Error reproduciendo:', e));
+                }
+                if (timeRemaining === WARNING_TIME7 && !Played7) {
+                    Played7 = true;
+                    Sound7.currentTime = 0;
+                    Sound7.play().catch(e => console.log('Error reproduciendo:', e));
+                }
+                if (timeRemaining === WARNING_TIME6 && !Played6) {
+                    Played6 = true;
+                    Sound6.currentTime = 0;
+                    Sound6.play().catch(e => console.log('Error reproduciendo:', e));
+                }
+                if (timeRemaining === WARNING_TIME5 && !Played5) {
+                    Played5 = true;
+                    Sound5.currentTime = 0;
+                    Sound5.play().catch(e => console.log('Error reproduciendo:', e));
+                }
+                if (timeRemaining === WARNING_TIME4 && !Played4) {
+                    Played4 = true;
+                    Sound4.currentTime = 0;
+                    Sound4.play().catch(e => console.log('Error reproduciendo:', e));
+                }
+                if (timeRemaining === WARNING_TIME3 && !Played3) {
+                    Played3 = true;
+                    Sound3.currentTime = 0;
+                    Sound3.play().catch(e => console.log('Error reproduciendo:', e));
+                }
+                if (timeRemaining === WARNING_TIME2 && !Played2) {
+                    Played2 = true;
+                    Sound2.currentTime = 0;
+                    Sound2.play().catch(e => console.log('Error reproduciendo:', e));
+                }
+                if (timeRemaining === WARNING_TIME1 && !Played1) {
+                    Played1 = true;
+                    Sound1.currentTime = 0;
+                    Sound1.play().catch(e => console.log('Error reproduciendo:', e));
+                }
+                if (timeRemaining === WARNING_TIME1m && !Played1m) {
+                    Played1m = true;
+                    Sound1m.currentTime = 0;
+                    Sound1m.play().catch(e => console.log('Error reproduciendo:', e));
+                }
+                if (timeRemaining === WARNING_TIME2m && !Played2m) {
+                    Played2m = true;
+                    Sound2m.currentTime = 0;
+                    Sound2m.play().catch(e => console.log('Error reproduciendo láser:', e));
+                }
+
+                if (timeRemaining <= 0) {
+                    endTimer();
+                }
+            }, 1000);
+        }
+
+        function endTimer() {
+            clearInterval(timerInterval);
+            isRunning = false;
+            timeRemaining = 0;
+            updateDisplay();
+
+            buzzerSound.currentTime = 0;
+            buzzerSound.play().catch(e => console.log('Error reproduciendo buzzer:', e));
+
+            endingPhase = true;
+
+            setTimeout(() => {
+                resetTimer();
+            }, END_DISPLAY_TIME * 1000);
+        }
+
+        function resetTimer() {
+            timeRemaining = TOTAL_TIME;
+            endingPhase = false;
+            laserPlayed = false;
+            updateDisplay();
+            container.classList.add('idle');
+            container.classList.remove('running');
+            container.classList.remove('fullscreen');
+            startButton.classList.remove('hidden');
+            startButtonFullscreen.classList.remove('hidden');
+            startButton.removeEventListener('click', startTimer);
+            startButtonFullscreen.removeEventListener('click', startTimer);
+            startButton.addEventListener('click', enterFullscreenMode);
+            startButtonFullscreen.addEventListener('click', enterFullscreenMode);
+            
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(err => {
+                    console.log('Error al salir de pantalla completa:', err);
+                });
+            }
+        }
+
+        startButton.addEventListener('click', enterFullscreenMode);
+        startButtonFullscreen.addEventListener('click', enterFullscreenMode);
+
+        // Enlace de ayuda
+        document.getElementById('helpLink').addEventListener('click', (e) => {
+            e.preventDefault();
+            alert('Utilizacion: Carga esta página en una ventana independiente del navegador. Ponla reducida para que ver sólo el botón, detrás debe estar la tabla de clasificación. Cuando vayas a iniciar la partida, se pondrá en pantalla completa. Al terminar volverá a reducirse para ver las clasificaciones.');
+        });
+
+        updateDisplay();
+    </script>
+</body>
+</html>

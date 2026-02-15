@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLL Timer - Panel de Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            background-color: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #1e3c72;
+            margin-bottom: 20px;
+            font-size: 24px;
+            text-align: center;
+            border-bottom: 2px solid #1e3c72;
+            padding-bottom: 10px;
+        }
+
+        .button-section {
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        #controlButton {
+            padding: 20px 40px;
+            font-size: 24px;
+            font-weight: bold;
+            background-color: #1e3c72;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(30, 60, 114, 0.3);
+        }
+
+        #controlButton:hover {
+            background-color: #2a5298;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(30, 60, 114, 0.4);
+        }
+
+        #controlButton:active {
+            transform: translateY(0);
+        }
+
+        #controlButton.ready {
+            background-color: #00aa00;
+            box-shadow: 0 4px 15px rgba(0, 170, 0, 0.3);
+        }
+
+        #controlButton.ready:hover {
+            background-color: #008800;
+            box-shadow: 0 6px 20px rgba(0, 170, 0, 0.4);
+        }
+
+        #controlButton.running {
+            background-color: #666666;
+            cursor: not-allowed;
+        }
+
+        #controlButton.running:hover {
+            background-color: #666666;
+            transform: none;
+        }
+
+        .settings-section {
+            background-color: #f5f5f5;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 15px;
+        }
+
+        .settings-section h2 {
+            color: #1e3c72;
+            font-size: 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .settings-section h2::before {
+            content: "⚙️";
+        }
+
+        .setting-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 8px;
+            margin-bottom: 4px;
+            background-color: white;
+            border-radius: 6px;
+            transition: background-color 0.2s ease;
+        }
+
+        .setting-item:hover {
+            background-color: #e8f0ff;
+        }
+
+        .setting-item label {
+            flex: 1;
+            cursor: pointer;
+            font-size: 13px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .setting-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #1e3c72;
+        }
+
+        .setting-item input[type="color"] {
+            width: 50px;
+            height: 28px;
+            cursor: pointer;
+            border: 2px solid #1e3c72;
+            border-radius: 4px;
+            padding: 2px;
+        }
+
+        .setting-item input[type="text"] {
+            flex: 1;
+            padding: 5px 8px;
+            font-size: 12px;
+            border: 2px solid #1e3c72;
+            border-radius: 4px;
+            background-color: white;
+            color: #333;
+        }
+
+        .setting-item select {
+            flex: 1;
+            padding: 5px 8px;
+            font-size: 13px;
+            border: 2px solid #1e3c72;
+            border-radius: 5px;
+            background-color: white;
+            cursor: pointer;
+            color: #333;
+        }
+
+        .color-label {
+            flex: 1;
+            font-size: 13px;
+            color: #333;
+        }
+
+        .file-input-container {
+            flex: 1;
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .file-input-container input[type="text"] {
+            flex: 1;
+        }
+
+        .file-select-btn {
+            padding: 5px 10px;
+            background-color: #1e3c72;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+            transition: background-color 0.2s ease;
+        }
+
+        .file-select-btn:hover {
+            background-color: #2a5298;
+        }
+
+        .file-select-btn:active {
+            background-color: #163154;
+        }
+
+        .settings-header {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .settings-header:hover h2 {
+            color: #2a5298;
+        }
+
+        .collapse-icon {
+            font-size: 20px;
+            transition: transform 0.3s ease;
+        }
+
+        .collapse-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .settings-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .settings-content.collapsed {
+            max-height: 0;
+        }
+
+        .info-section {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 8px 10px;
+            border-radius: 6px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #856404;
+            line-height: 1.4;
+        }
+
+        .info-section strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .open-timer-button {
+            padding: 10px 20px;
+            font-size: 15px;
+            background-color: #ff0000;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            font-weight: 600;
+            margin-bottom: 8px;
+            margin-top: 3px;
+        }
+
+        .open-timer-button:hover {
+            background-color: #cc0000;
+            transform: translateY(-2px);
+        }
+
+        .open-timer-button:active {
+            transform: translateY(0);
+        }
+
+        .status-info {
+            text-align: center;
+            padding: 10px;
+            background-color: #e8f0ff;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #1e3c72;
+        }
+
+        .action-button {
+            width: 100%;
+            padding: 8px 16px;
+            margin: 4px 0;
+            font-size: 13px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .action-button:active {
+            transform: translateY(0);
+        }
+
+        .action-button.danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            box-shadow: 0 3px 10px rgba(245, 87, 108, 0.3);
+        }
+
+        .action-button.danger:hover {
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+        }
+        
+        .main-content {
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="container main-content" id="mainContent">
+        <div class="status-info" id="statusInfo">
+            Estado: Preparado
+        </div>
+
+        <div class="button-section">
+            <button id="controlButton">Temporizador</button>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-header" id="settingsHeader">
+                <h2>Configuraciones</h2>
+                <span class="collapse-icon collapsed" id="collapseIcon">▼</span>
+            </div>
+            
+            <div class="settings-content collapsed" id="settingsContent">
+
+            <div class="setting-item">
+                <button id="forgetPositionButton" class="action-button">🚫Olvidar posición ventana</button>
+            </div>
+
+                <button id="openTimerButton" class="open-timer-button">🔄 Reinicio Temporizador</button>
+
+            <div class="setting-item">
+            <label>
+                    <input type="checkbox" id="announce2min" checked>
+                    🔊 Anunciar 2 minutos
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="announce1min" checked>
+                    🔊 Anunciar 1 minuto
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="announce30sec" checked>
+                    🔊 Anunciar 30 segundos
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="announce10sec" checked>
+                    🔊 Anunciar 10 segundos
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="showLogos" checked>
+                    🖼️ Mostrar logotipos
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="showBackground" checked>
+                    🖼️ Mostrar imagen de fondo
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="closeAfter30sec" checked>
+                    ⏱️ Cerrar temporizador 30 seg. después de finalizar
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <span class="color-label">🖼️ Imagen de fondo:</span>
+                <div class="file-input-container">
+                    <input type="text" id="backgroundImagePath" value="Fondo_temporada.png" placeholder="fondo_temporada.png">
+                    <button class="file-select-btn" onclick="selectFile('backgroundImagePath')">📁</button>
+                </div>
+                <input type="file" id="backgroundImageFile" accept="image/*" style="display: none;">
+            </div>
+
+            <div class="setting-item">
+                <span class="color-label">🖼️ Logo izquierdo:</span>
+                <div class="file-input-container">
+                    <input type="text" id="logoLeftPath" value="isoy-tr-brgh-768x178.png" placeholder="ruta/imagen.png">
+                    <button class="file-select-btn" onclick="selectFile('logoLeftPath')">📁</button>
+                </div>
+                <input type="file" id="logoLeftFile" accept="image/*" style="display: none;">
+            </div>
+
+            <div class="setting-item">
+                <span class="color-label">🖼️ Logo central:</span>
+                <div class="file-input-container">
+                    <input type="text" id="logoCenterPath" value="first_age_fll_unearthed_white.png" placeholder="ruta/imagen.png">
+                    <button class="file-select-btn" onclick="selectFile('logoCenterPath')">📁</button>
+                </div>
+                <input type="file" id="logoCenterFile" accept="image/*" style="display: none;">
+            </div>
+
+            <div class="setting-item">
+                <span class="color-label">🖼️ Logo derecho:</span>
+                <div class="file-input-container">
+                    <input type="text" id="logoRightPath" value="FIRSTLego-SPAIN-logo-small_white.png" placeholder="ruta/imagen.png">
+                    <button class="file-select-btn" onclick="selectFile('logoRightPath')">📁</button>
+                </div>
+                <input type="file" id="logoRightFile" accept="image/*" style="display: none;">
+            </div>
+
+            <div class="setting-item">
+                <span class="color-label">🎨 Color de fondo:</span>
+                <input type="color" id="colorBackground" value="#000000">
+            </div>
+
+            <div class="setting-item">
+                <span class="color-label">🎨 Color reposo:</span>
+                <input type="color" id="colorReady" value="#ffff00">
+            </div>
+
+            <div class="setting-item">
+                <span class="color-label">🎨 Color 2:30:</span>
+                <input type="color" id="colorNormal" value="#00ff00">
+            </div>
+
+            <div class="setting-item">
+                <span class="color-label">🎨 Color 30 seg:</span>
+                <input type="color" id="color30sec" value="#ff8800">
+            </div>
+
+            <div class="setting-item">
+                <span class="color-label">🎨 Color 10 seg:</span>
+                <input type="color" id="color10sec" value="#ff0000">
+            </div>
+
+            <div class="setting-item">
+                <span class="color-label">🔤 Tipo de dígitos:</span>
+                <select id="fontType">
+                    <option value="normal">Normal</option>
+                    <option value="rock">Rock</option>
+                    <option value="seven-segment">7 Segmentos</option>
+                    <option value="lcd">LCD Retro</option>
+                    <option value="neon-glow">Neón Brillante</option>
+                    <option value="stencil">Stencil Militar</option>
+                    <option value="outlined">Outlined</option>
+                    <option value="gradient">3D Gradient</option>
+                </select>
+            </div>
+
+            <div class="setting-item">
+                <button id="resetAllButton" class="action-button danger">🗑️ Borrar TODAS las configuraciones</button>
+            </div>
+
+            <div class="info-section">
+                <strong>ℹ️ Instrucciones:</strong>
+                A. Abre esta página en una ventana independiente que puedas hacer pequeña de modo que sólo se vea el botón.<br>
+                <strong>Partidas:</strong>
+                1. Pulsa "Temporizador" para traer al frente el temporizador<br>
+                2. Pulsa "Inicio" para comenzar la partida<br>
+                3. Al finalizar (después de 30 seg), se reseteará
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Elementos de audio -->
+    <audio id="chargerSound" src="resources/sounds/charger.mp3"></audio>
+    <audio id="Sound10" src="resources/sounds/_Diez.mp3"></audio>
+    <audio id="Sound9" src="resources/sounds/_Nueve.mp3"></audio>
+    <audio id="Sound8" src="resources/sounds/_Ocho.mp3"></audio>
+    <audio id="Sound7" src="resources/sounds/_Siete.mp3"></audio>
+    <audio id="Sound6" src="resources/sounds/_Seis.mp3"></audio>
+    <audio id="Sound5" src="resources/sounds/_Cinco.mp3"></audio>
+    <audio id="Sound4" src="resources/sounds/_Cuatro.mp3"></audio>
+    <audio id="Sound3" src="resources/sounds/_Tres.mp3"></audio>
+    <audio id="Sound2" src="resources/sounds/_Dos.mp3"></audio>
+    <audio id="Sound1" src="resources/sounds/_Uno.mp3"></audio>
+    <audio id="Sound30" src="resources/sounds/30seg.mp3"></audio>
+    <audio id="Sound1m" src="resources/sounds/1min.mp3"></audio>
+    <audio id="Sound2m" src="resources/sounds/2min.mp3"></audio>
+    <audio id="buzzerSound" src="resources/sounds/buzzer.mp3"></audio>
+
+    <script>
+        const STATES = {
+            IDLE: 'idle',
+            PREPARED: 'prepared',
+            RUNNING: 'running'
+        };
+
+        let currentState = STATES.IDLE;
+        let timerWindow = null;
+        let statusTimeout = null; // Para controlar el timeout de mensajes de estado
+        let settingsTimeout = null; // Para controlar el debounce de configuraciones
+
+        const controlButton = document.getElementById('controlButton');
+        const openTimerButton = document.getElementById('openTimerButton');
+        const statusInfo = document.getElementById('statusInfo');
+        const settingsHeader = document.getElementById('settingsHeader');
+        const settingsContent = document.getElementById('settingsContent');
+        const collapseIcon = document.getElementById('collapseIcon');
+        const forgetPositionButton = document.getElementById('forgetPositionButton');
+        const resetAllButton = document.getElementById('resetAllButton');
+
+        // Checkboxes de configuración
+        const announce2min = document.getElementById('announce2min');
+        const announce1min = document.getElementById('announce1min');
+        const announce30sec = document.getElementById('announce30sec');
+        const announce10sec = document.getElementById('announce10sec');
+        const showLogos = document.getElementById('showLogos');
+        const showBackground = document.getElementById('showBackground');
+        const closeAfter30sec = document.getElementById('closeAfter30sec');
+
+        // Selectores de color
+        const colorBackground = document.getElementById('colorBackground');
+        const colorReady = document.getElementById('colorReady');
+        const colorNormal = document.getElementById('colorNormal');
+        const color30sec = document.getElementById('color30sec');
+        const color10sec = document.getElementById('color10sec');
+
+        // Selector de tipo de fuente
+        const fontType = document.getElementById('fontType');
+
+        // Inputs de rutas de imágenes
+        const backgroundImagePath = document.getElementById('backgroundImagePath');
+        const logoLeftPath = document.getElementById('logoLeftPath');
+        const logoCenterPath = document.getElementById('logoCenterPath');
+        const logoRightPath = document.getElementById('logoRightPath');
+
+        // Elementos de audio
+        const chargerSound = document.getElementById('chargerSound');
+        const Sound10 = document.getElementById('Sound10');
+        const Sound9 = document.getElementById('Sound9');
+        const Sound8 = document.getElementById('Sound8');
+        const Sound7 = document.getElementById('Sound7');
+        const Sound6 = document.getElementById('Sound6');
+        const Sound5 = document.getElementById('Sound5');
+        const Sound4 = document.getElementById('Sound4');
+        const Sound3 = document.getElementById('Sound3');
+        const Sound2 = document.getElementById('Sound2');
+        const Sound1 = document.getElementById('Sound1');
+        const Sound30 = document.getElementById('Sound30');
+        const Sound1m = document.getElementById('Sound1m');
+        const Sound2m = document.getElementById('Sound2m');
+        const buzzerSound = document.getElementById('buzzerSound');
+
+        // Canal de comunicación entre ventanas
+        const channel = new BroadcastChannel('fll-timer-channel');
+
+        // Mapa de sonidos
+        const soundMap = {
+            'charger': chargerSound,
+            '10': Sound10,
+            '9': Sound9,
+            '8': Sound8,
+            '7': Sound7,
+            '6': Sound6,
+            '5': Sound5,
+            '4': Sound4,
+            '3': Sound3,
+            '2': Sound2,
+            '1': Sound1,
+            '30sec': Sound30,
+            '1min': Sound1m,
+            '2min': Sound2m,
+            'buzzer': buzzerSound
+        };
+
+        // Función para reproducir sonido
+        function playSound(soundName) {
+            const audio = soundMap[soundName];
+            if (audio) {
+                audio.currentTime = 0;
+                audio.play().catch(e => {
+                    console.log('Error reproduciendo audio:', soundName, e);
+                });
+            }
+        }
+
+        // Función para formatear tiempo
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Cargar configuraciones guardadas
+        function loadSettings() {
+            announce2min.checked = localStorage.getItem('announce2min') !== 'false';
+            announce1min.checked = localStorage.getItem('announce1min') !== 'false';
+            announce30sec.checked = localStorage.getItem('announce30sec') !== 'false';
+            announce10sec.checked = localStorage.getItem('announce10sec') !== 'false';
+            showLogos.checked = localStorage.getItem('showLogos') !== 'false';
+            showBackground.checked = localStorage.getItem('showBackground') !== 'false';
+            closeAfter30sec.checked = localStorage.getItem('closeAfter30sec') === 'true';
+            
+            // Cargar colores (usar valores por defecto si no existen)
+            colorBackground.value = localStorage.getItem('colorBackground') || '#000000';
+            colorReady.value = localStorage.getItem('colorReady') || '#ffff00';
+            colorNormal.value = localStorage.getItem('colorNormal') || '#00ff00';
+            color30sec.value = localStorage.getItem('color30sec') || '#ff8800';
+            color10sec.value = localStorage.getItem('color10sec') || '#ff0000';
+            
+            // Cargar tipo de fuente
+            fontType.value = localStorage.getItem('fontType') || 'normal';
+            
+            // Cargar rutas de imágenes
+            backgroundImagePath.value = localStorage.getItem('backgroundImagePath') || 'Fondo_temporada.png';
+            logoLeftPath.value = localStorage.getItem('logoLeftPath') || 'isoy-tr-brgh-768x178.png';
+            logoCenterPath.value = localStorage.getItem('logoCenterPath') || 'first_age_fll_unearthed_white.png';
+            logoRightPath.value = localStorage.getItem('logoRightPath') || 'FIRSTLego-SPAIN-logo-small_white.png';
+        }
+
+        // Guardar configuraciones
+        function saveSettings() {
+            localStorage.setItem('announce2min', announce2min.checked);
+            localStorage.setItem('announce1min', announce1min.checked);
+            localStorage.setItem('announce30sec', announce30sec.checked);
+            localStorage.setItem('announce10sec', announce10sec.checked);
+            localStorage.setItem('showLogos', showLogos.checked);
+            localStorage.setItem('showBackground', showBackground.checked);
+            localStorage.setItem('closeAfter30sec', closeAfter30sec.checked);
+            
+            // Guardar colores
+            localStorage.setItem('colorBackground', colorBackground.value);
+            localStorage.setItem('colorReady', colorReady.value);
+            localStorage.setItem('colorNormal', colorNormal.value);
+            localStorage.setItem('color30sec', color30sec.value);
+            localStorage.setItem('color10sec', color10sec.value);
+            
+            // Guardar tipo de fuente
+            localStorage.setItem('fontType', fontType.value);
+            
+            // Guardar rutas de imágenes
+            localStorage.setItem('backgroundImagePath', backgroundImagePath.value);
+            localStorage.setItem('logoLeftPath', logoLeftPath.value);
+            localStorage.setItem('logoCenterPath', logoCenterPath.value);
+            localStorage.setItem('logoRightPath', logoRightPath.value);
+            
+            // Cancelar timeout anterior si existe
+            if (settingsTimeout) {
+                clearTimeout(settingsTimeout);
+            }
+            
+            // Notificar a la ventana del temporizador después de un pequeño delay
+            // para asegurar que localStorage se haya guardado completamente
+            settingsTimeout = setTimeout(() => {
+                channel.postMessage({ type: 'settings-changed' });
+                settingsTimeout = null;
+            }, 150);
+        }
+
+        // Función para seleccionar archivo
+        function selectFile(inputId) {
+            const fileInputId = inputId.replace('Path', 'File');
+            const fileInput = document.getElementById(fileInputId);
+            const textInput = document.getElementById(inputId);
+            
+            // Crear nuevo input file si no existe
+            if (!fileInput) {
+                console.error('File input not found:', fileInputId);
+                return;
+            }
+            
+            // Configurar el listener para cuando se seleccione un archivo
+            fileInput.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    // Extraer solo el nombre del archivo con su ruta relativa si es posible
+                    // Si está en la carpeta resources, usar esa ruta
+                    const fileName = file.name;
+                    
+                    // Actualizar el input de texto con la ruta
+                    textInput.value = fileName;
+                    
+                    // Guardar configuraciones
+                    saveSettings();
+                    
+                    // Mostrar mensaje informativo
+                    statusInfo.textContent = `📁 Archivo seleccionado: ${fileName}. Cópialo a la carpeta resources/.`;
+                    statusInfo.style.backgroundColor = '#d1ecf1';
+                    setTimeout(() => {
+                        statusInfo.textContent = '⏸️ Sistema en reposo';
+                        statusInfo.style.backgroundColor = '#e8f0ff';
+                    }, 5000);
+                }
+            };
+            
+            // Abrir el selector de archivos
+            fileInput.click();
+        }
+
+        // Función para obtener la posición y tamaño guardados de la ventana
+        function getSavedWindowPosition() {
+            const savedLeft = localStorage.getItem('windowLeft');
+            const savedTop = localStorage.getItem('windowTop');
+            const savedWidth = localStorage.getItem('windowWidth');
+            const savedHeight = localStorage.getItem('windowHeight');
+            
+            const left = savedLeft ? savedLeft : '100';
+            const top = savedTop ? savedTop : '100';
+            const width = savedWidth ? savedWidth : '1200';
+            const height = savedHeight ? savedHeight : '800';
+            
+            return `left=${left},top=${top},width=${width},height=${height},menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes`;
+        }
+
+        // Función para verificar si hay posición guardada
+        function hasStoredPosition() {
+            return localStorage.getItem('windowLeft') !== null;
+        }
+
+        // Función para actualizar el texto del botón de posición
+        function updatePositionButtonText() {
+            if (hasStoredPosition()) {
+                forgetPositionButton.textContent = '🚫 Olvidar posición ventana';
+            } else {
+                forgetPositionButton.textContent = '💾 Guardar Posición';
+            }
+        }
+
+        // Función toggle para guardar/olvidar la posición de la ventana
+        function toggleWindowPosition() {
+            if (hasStoredPosition()) {
+                // Olvidar posición
+                localStorage.removeItem('windowLeft');
+                localStorage.removeItem('windowTop');
+                localStorage.removeItem('windowWidth');
+                localStorage.removeItem('windowHeight');
+                
+                // Actualizar el texto del botón inmediatamente
+                updatePositionButtonText();
+                
+                // Notificar a la ventana del temporizador para que muestre el overlay
+                channel.postMessage({ type: 'forget-position' });
+                
+                statusInfo.textContent = '✅ Posición de ventana olvidada. La próxima vez se abrirá en posición por defecto.';
+                setTimeout(() => {
+                    statusInfo.textContent = '⏸️ Sistema en reposo';
+                }, 3000);
+            } else {
+                // Guardar posición - enviar mensaje a la ventana del temporizador
+                if (timerWindow && !timerWindow.closed) {
+                    channel.postMessage({ type: 'save-position' });
+                    // El botón se actualizará cuando llegue la confirmación 'position-saved'
+                } else {
+                    statusInfo.textContent = '⚠️ Abre la ventana del temporizador primero para guardar su posición.';
+                    setTimeout(() => {
+                        statusInfo.textContent = '⏸️ Sistema en reposo';
+                    }, 3000);
+                }
+            }
+        }
+
+        // Función para restablecer todas las configuraciones
+        function resetAllSettings() {
+            if (confirm('¿Estás seguro de que quieres borrar TODAS las configuraciones? Esta acción no se puede deshacer.')) {
+                // Cerrar la ventana del temporizador si está abierta
+                if (timerWindow && !timerWindow.closed) {
+                    timerWindow.close();
+                    timerWindow = null;
+                }
+                localStorage.clear();
+                statusInfo.textContent = '🔄 Configuración restablecida. Recargando...';
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            }
+        }
+
+        // Event listeners para guardar configuraciones
+        announce2min.addEventListener('change', saveSettings);
+        announce1min.addEventListener('change', saveSettings);
+        announce30sec.addEventListener('change', saveSettings);
+        announce10sec.addEventListener('change', saveSettings);
+        showLogos.addEventListener('change', saveSettings);
+        showBackground.addEventListener('change', saveSettings);
+        closeAfter30sec.addEventListener('change', saveSettings);
+        
+        // Event listeners para colores y fuente
+        colorBackground.addEventListener('change', saveSettings);
+        colorReady.addEventListener('change', saveSettings);
+        colorNormal.addEventListener('change', saveSettings);
+        color30sec.addEventListener('change', saveSettings);
+        color10sec.addEventListener('change', saveSettings);
+        fontType.addEventListener('change', saveSettings);
+        
+        // Event listeners para rutas de imágenes
+        backgroundImagePath.addEventListener('input', saveSettings);
+        logoLeftPath.addEventListener('input', saveSettings);
+        logoCenterPath.addEventListener('input', saveSettings);
+        logoRightPath.addEventListener('input', saveSettings);
+
+        function updateUI() {
+            switch(currentState) {
+                case STATES.IDLE:
+                    controlButton.textContent = 'Temporizador';
+                    controlButton.className = '';
+                    statusInfo.textContent = 'Estado: Preparado';
+                    statusInfo.style.backgroundColor = '#e8f0ff';
+                    break;
+                case STATES.PREPARED:
+                    controlButton.textContent = 'Inicio';
+                    controlButton.className = 'ready';
+                    statusInfo.textContent = 'Estado: Listo para iniciar (2:30)';
+                    statusInfo.style.backgroundColor = '#d4edda';
+                    break;
+                case STATES.RUNNING:
+                    controlButton.textContent = 'En ejecución...';
+                    controlButton.className = 'running';
+                    statusInfo.textContent = 'Estado: Temporizador en ejecución';
+                    statusInfo.style.backgroundColor = '#fff3cd';
+                    break;
+            }
+        }
+
+        controlButton.addEventListener('click', () => {
+            if (currentState === STATES.IDLE) {
+                // Verificar si la ventana del temporizador está abierta
+                if (!timerWindow || timerWindow.closed) {
+                    // Recuperar posición y tamaño guardados
+                    const savedPosition = getSavedWindowPosition();
+                    
+                    // Abrir la ventana del temporizador sin barra de direcciones
+                    timerWindow = window.open(
+                        './resources/temporizador.html',
+                        'FLL_Timer',
+                        savedPosition
+                    );
+                    // Esperar un poco para que la ventana se cargue
+                    setTimeout(() => {
+                        currentState = STATES.PREPARED;
+                        updateUI();
+                        channel.postMessage({ type: 'prepare-timer' });
+                        timerWindow.focus();
+                    }, 500);
+                } else {
+                    // La ventana ya está abierta
+                    timerWindow.focus();
+                    currentState = STATES.PREPARED;
+                    updateUI();
+                    channel.postMessage({ type: 'prepare-timer' });
+                }
+            } else if (currentState === STATES.PREPARED) {
+                // Verificar que la ventana del temporizador sigue abierta
+                if (!timerWindow || timerWindow.closed) {
+                    // La ventana se cerró, volver a estado IDLE
+                    currentState = STATES.IDLE;
+                    updateUI();
+                    timerWindow = null;
+                    statusInfo.textContent = '⚠️ La ventana del temporizador se cerró. Pulsa "Temporizador" para abrir de nuevo.';
+                    statusInfo.style.backgroundColor = '#f8d7da';
+                    return;
+                }
+                
+                // Iniciar timer
+                currentState = STATES.RUNNING;
+                updateUI();
+                channel.postMessage({ type: 'start-timer' });
+                
+                // Traer la ventana del temporizador al frente
+                if (timerWindow && !timerWindow.closed) {
+                    timerWindow.focus();
+                }
+            }
+            // Si está running, no hacer nada
+        });
+
+        // Toggle panel de configuraciones
+        settingsHeader.addEventListener('click', () => {
+            settingsContent.classList.toggle('collapsed');
+            collapseIcon.classList.toggle('collapsed');
+        });
+
+        openTimerButton.addEventListener('click', () => {
+            // Reiniciar el temporizador
+            currentState = STATES.IDLE;
+            updateUI();
+            channel.postMessage({ type: 'reset-timer' });
+            
+            // Abrir ventana del temporizador
+            if (!timerWindow || timerWindow.closed) {
+                // Recuperar posición y tamaño guardados
+                const savedPosition = getSavedWindowPosition();
+                
+                // Abrir la ventana del temporizador sin barra de direcciones
+                timerWindow = window.open(
+                    'temporizador.html',
+                    'FLL_Timer',
+                    savedPosition
+                );
+                
+                // Actualizar estado
+                statusInfo.textContent = '🖥️ Abriendo ventana del temporizador...';
+                setTimeout(() => {
+                    statusInfo.textContent = 'ℹ️ Haz click en la ventana del temporizador para continuar';
+                }, 500);
+            } else {
+                // La ventana ya está abierta
+                timerWindow.focus();
+                statusInfo.textContent = '🔄 Ventana del temporizador reiniciada';
+                setTimeout(() => {
+                    updateUI();
+                }, 2000);
+            }
+        });
+
+        // Escuchar mensajes desde la ventana del timer
+        channel.addEventListener('message', (event) => {
+            if (event.data.type === 'play-sound') {
+                // Reproducir el sonido solicitado
+                playSound(event.data.sound);
+            } else if (event.data.type === 'timer-started') {
+                // El temporizador se ha iniciado (desde el botón o desde los logos)
+                currentState = STATES.RUNNING;
+                updateUI();
+            } else if (event.data.type === 'timer-tick') {
+                // Actualizar el status con el tiempo restante
+                if (currentState === STATES.RUNNING) {
+                    statusInfo.textContent = `⏱️ Tiempo: ${formatTime(event.data.timeRemaining)}`;
+                }
+            } else if (event.data.type === 'timer-reset') {
+                currentState = STATES.IDLE;
+                updateUI();
+                // Cerrar la ventana del timer
+                if (timerWindow && !timerWindow.closed) {
+                    // Cerrar la ventana solo si la opción está activada
+                    if (closeAfter30sec.checked) {
+                      timerWindow.close();
+                      timerWindow = null;
+                    }
+                }
+            } else if (event.data.type === 'play-sound') {
+                // Reproducir el sonido solicitado
+                playSound(event.data.sound);
+            } else if (event.data.type === 'timer-tick') {
+                // Actualizar el status con el tiempo restante
+                if (currentState === STATES.RUNNING) {
+                    const timeStr = formatTime(event.data.timeRemaining);
+                    statusInfo.textContent = `⏱️ ${timeStr}`;
+                    statusInfo.style.fontWeight = 'bold';
+                }
+            } else if (event.data.type === 'status-update') {
+                // Cancelar el timeout anterior si existe
+                if (statusTimeout) {
+                    clearTimeout(statusTimeout);
+                    statusTimeout = null;
+                }
+                
+                // Mostrar mensaje de estado
+                statusInfo.textContent = event.data.message;
+                statusInfo.style.fontWeight = 'bold';
+                
+                // Volver al estado normal después de 3 segundos
+                statusTimeout = setTimeout(() => {
+                    updateUI();
+                    statusInfo.style.fontWeight = 'normal';
+                    statusTimeout = null;
+                }, 3000);
+            } else if (event.data.type === 'position-saved') {
+                // La ventana del temporizador confirmó que se guardó la posición
+                updatePositionButtonText();
+                statusInfo.textContent = '💾 Posición de ventana guardada correctamente.';
+                statusInfo.style.fontWeight = 'bold';
+                setTimeout(() => {
+                    statusInfo.textContent = '⏸️ Sistema en reposo';
+                    statusInfo.style.fontWeight = 'normal';
+                }, 3000);
+            }
+        });
+
+        // Event listener para guardar/olvidar posición de la ventana
+        forgetPositionButton.addEventListener('click', toggleWindowPosition);
+
+        // Event listener para restablecer todas las configuraciones
+        resetAllButton.addEventListener('click', resetAllSettings);
+
+        // Cargar configuraciones al iniciar
+        loadSettings();
+        updateUI();
+        updatePositionButtonText();
+
+        // Verificar si la ventana del timer está abierta
+        setInterval(() => {
+            if (timerWindow && timerWindow.closed) {
+                timerWindow = null;
+                // Si la ventana se cerró manualmente y no estamos en IDLE, resetear el estado
+                if (currentState !== STATES.IDLE) {
+                    currentState = STATES.IDLE;
+                    updateUI();
+                }
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

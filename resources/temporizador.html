@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLL Timer - Pantalla Principal</title>
+    <style>
+        @font-face {
+            font-family: 'Digital7Mono';
+            src: url('digital_7_mono.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100vh;
+            background-color: #000000;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            background-image: url('fondo_temporada.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            gap: 40px;
+        }
+
+        .timer {
+            font-size: 32vw;
+            color: #00ff00;
+            font-weight: bold;
+            font-variant-numeric: tabular-nums;
+            text-align: center;
+            line-height: 1;
+            transition: color 0.3s ease;
+            width: 90vw;
+            max-width: 90vw;
+            user-select: none;
+            cursor: default;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        .timer.warning-30 {
+            color: #ff8800;
+        }
+
+        .timer.warning-10 {
+            color: #ff0000;
+        }
+
+        .timer.ready {
+            color: #ffff00;
+        }
+
+        @keyframes oscillate {
+            0% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(80px);
+            }
+            50% {
+                transform: translateX(0);
+            }
+            75% {
+                transform: translateX(-80px);
+            }
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        .timer.ending {
+            animation: oscillate 1.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+        }
+
+        .logos-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 90vw;
+            max-width: 90vw;
+            gap: 2vw;
+        }
+
+        .logo-left, .logo-center, .logo-right {
+            flex: 1 1 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        .logos-container img {
+            width: 100%;
+            height: auto;
+            max-height: 15vh;
+            object-fit: contain;
+            cursor: pointer;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .logos-container img:hover {
+            opacity: 0.8;
+            transform: scale(1.05);
+        }
+
+        .logos-container img.disabled {
+            cursor: default;
+            opacity: 1;
+        }
+
+        .logos-container img.disabled:hover {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+
+        .initial-message {
+            background-color: #1e3c72;
+            color: white;
+            padding: 40px 60px;
+            border-radius: 15px;
+            font-size: 24px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            border: 3px solid #ffff00;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .initial-message p {
+            margin: 0;
+            font-weight: bold;
+            line-height: 1.5;
+        }
+
+        .initial-message small {
+            display: block;
+            margin-top: 15px;
+            font-size: 16px;
+            opacity: 0.8;
+        }
+
+        .position-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 85%;
+            transition: opacity 0.5s ease;
+        }
+
+        .position-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .position-message {
+            background-color: rgba(30, 60, 114, 0.95);
+            color: white;
+            padding: 40px 60px;
+            border-radius: 20px;
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            max-width: 80%;
+            line-height: 1.5;
+        }
+
+        .position-message::before {
+            content: "💾";
+            display: block;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="position-overlay" id="positionOverlay">
+        <div class="position-message">
+            Coloque la ventana en la posición y tamaño para proyectar y haga click para guardar.
+        </div>
+    </div>
+
+    <div class="container" id="container">
+        <div class="timer ready" id="timer">2:30</div>
+        <div class="logos-container">
+            <div class="logo-left">
+                <img id="logoLeft" src="isoy-tr-brgh-768x178.png" alt="Logo Izquierdo">
+            </div>
+            <div class="logo-center">
+                <img id="logoCenter" src="first_age_fll_unearthed_white.png" alt="Logo Central">
+            </div>
+            <div class="logo-right">
+                <img id="logoRight" src="FIRSTLego-SPAIN-logo-small.png" alt="Logo Derecho">
+            </div>
+        </div>
+    </div>
+
+
+
+    <script>
+        const TOTAL_TIME = 150; // 2 minutos y 30 segundos
+        const END_DISPLAY_TIME = 30; // Mostrar 0:00 durante 30 segundos
+
+        let timeRemaining = TOTAL_TIME;
+        let isRunning = false;
+        let timerInterval = null;
+        let endingPhase = false;
+
+        // Elementos del DOM
+        const positionOverlay = document.getElementById('positionOverlay');
+        const timerDisplay = document.getElementById('timer');
+        const logosContainer = document.querySelector('.logos-container');
+        const logoLeft = document.getElementById('logoLeft');
+        const logoCenter = document.getElementById('logoCenter');
+        const logoRight = document.getElementById('logoRight');
+
+        // Canal de comunicación entre ventanas
+        const channel = new BroadcastChannel('fll-timer-channel');
+
+        // Cargar configuraciones
+        function loadSettings() {
+            return {
+                announce2min: localStorage.getItem('announce2min') !== 'false', // por defecto true
+                announce1min: localStorage.getItem('announce1min') !== 'false',
+                announce30sec: localStorage.getItem('announce30sec') !== 'false',
+                announce10sec: localStorage.getItem('announce10sec') !== 'false',
+                showLogos: localStorage.getItem('showLogos') !== 'false',
+                showBackground: localStorage.getItem('showBackground') !== 'false',
+                closeAfter30sec: localStorage.getItem('closeAfter30sec') === 'true',
+                colorBackground: localStorage.getItem('colorBackground') || '#000000',
+                colorReady: localStorage.getItem('colorReady') || '#ffff00',
+                colorNormal: localStorage.getItem('colorNormal') || '#00ff00',
+                color30sec: localStorage.getItem('color30sec') || '#ff8800',
+                color10sec: localStorage.getItem('color10sec') || '#ff0000',
+                fontType: localStorage.getItem('fontType') || 'normal',
+                backgroundImagePath: localStorage.getItem('backgroundImagePath') || 'Fondo_temporada.png',
+                logoLeftPath: localStorage.getItem('logoLeftPath') || 'isoy-tr-brgh-768x178.png',
+                logoCenterPath: localStorage.getItem('logoCenterPath') || 'first_age_fll_unearthed_white.png',
+                logoRightPath: localStorage.getItem('logoRightPath') || 'FIRSTLego-SPAIN-logo-small_white.png'
+            };
+        }
+
+        // Aplicar imágenes de los logos
+        function applyLogoImages() {
+            const settings = loadSettings();
+            const timestamp = new Date().getTime();
+            if (logoLeft) logoLeft.src = settings.logoLeftPath + '?t=' + timestamp;
+            if (logoCenter) logoCenter.src = settings.logoCenterPath + '?t=' + timestamp;
+            if (logoRight) logoRight.src = settings.logoRightPath + '?t=' + timestamp;
+        }
+
+        // Aplicar visibilidad de logos
+        function applyLogosVisibility() {
+            const settings = loadSettings();
+            if (logosContainer) {
+                logosContainer.style.display = settings.showLogos ? 'flex' : 'none';
+            }
+        }
+
+        // Aplicar visibilidad de imagen de fondo
+        function applyBackgroundVisibility() {
+            const settings = loadSettings();
+            const timestamp = new Date().getTime();
+            // Forzar el cambio eliminando primero y luego aplicando
+            document.body.style.backgroundImage = 'none';
+            // Usar setTimeout para forzar reflow
+            setTimeout(() => {
+                if (settings.showBackground) {
+                    document.body.style.backgroundImage = `url('${settings.backgroundImagePath}?t=${timestamp}')`;
+                } else {
+                    document.body.style.backgroundImage = 'none';
+                }
+            }, 10);
+        }
+
+        // Aplicar color de fondo
+        function applyBackgroundColor() {
+            const settings = loadSettings();
+            document.body.style.backgroundColor = settings.colorBackground;
+        }
+
+        // Aplicar estilo de fuente según configuración
+        function applyFontStyle() {
+            const settings = loadSettings();
+            const fontType = settings.fontType;
+            
+            // Resetear todos los estilos primero
+            timerDisplay.style.fontStyle = 'normal';
+            timerDisplay.style.textShadow = 'none';
+            timerDisplay.style.transform = 'none';
+            timerDisplay.style.webkitTextStroke = '';
+            timerDisplay.style.filter = 'none';
+            timerDisplay.style.background = 'none';
+            timerDisplay.style.webkitBackgroundClip = '';
+            timerDisplay.style.webkitTextFillColor = '';
+            
+            if (fontType === 'rock') {
+                timerDisplay.style.fontFamily = "Impact, 'Arial Black', sans-serif";
+                timerDisplay.style.letterSpacing = '0.05em';
+                timerDisplay.style.fontWeight = '900';
+                timerDisplay.style.fontStyle = 'italic';
+                timerDisplay.style.textShadow = '4px 4px 8px rgba(0,0,0,0.5)';
+            } else if (fontType === 'seven-segment') {
+                // Display de 7 segmentos clásico con fuente digital
+                timerDisplay.style.fontFamily = "'Digital7Mono', 'Consolas', 'Courier New', monospace";
+                timerDisplay.style.letterSpacing = '0.1em';
+                timerDisplay.style.fontWeight = 'normal';
+                timerDisplay.style.textShadow = '0 0 0px currentColor, 0 0 0px currentColor, 0 0 0px currentColor';
+                timerDisplay.style.webkitTextStroke = '';
+                timerDisplay.style.filter = 'brightness(1.2)';
+            } else if (fontType === 'lcd') {
+                // LCD Retro estilo Game Boy
+                timerDisplay.style.fontFamily = "'Courier New', Courier, monospace";
+                timerDisplay.style.letterSpacing = '0.12em';
+                timerDisplay.style.fontWeight = 'bold';
+                timerDisplay.style.textShadow = '2px 2px 0px rgba(0,0,0,0.3), -1px -1px 0px rgba(255,255,255,0.1)';
+                timerDisplay.style.webkitTextStroke = '1px rgba(0,0,0,0.2)';
+            } else if (fontType === 'neon-glow') {
+                // Neón con resplandor intenso
+                timerDisplay.style.fontFamily = "'Arial Black', 'Arial', sans-serif";
+                timerDisplay.style.letterSpacing = '0.15em';
+                timerDisplay.style.fontWeight = 'bold';
+                timerDisplay.style.textShadow = '0 0 5px currentColor, 0 0 4px currentColor, 0 0 8px rgba(255,255,255,0.5), 0 0 16px currentColor, 0 0 16px currentColor, 0 0 16px rgba(255,255,255,0.5), 0 0 16px rgba(255,255,255,0.5)';
+                timerDisplay.style.webkitTextStroke = '1px rgba(255,255,255,0.3)';
+                timerDisplay.style.filter = 'brightness(1.3)';
+            } else if (fontType === 'stencil') {
+                // Estilo militar stencil
+                timerDisplay.style.fontFamily = "'Impact', 'Arial Black', sans-serif";
+                timerDisplay.style.letterSpacing = '0.08em';
+                timerDisplay.style.fontWeight = '900';
+                timerDisplay.style.textShadow = '3px 3px 0px rgba(0,0,0,0.8), 5px 5px 10px rgba(0,0,0,0.4)';
+                timerDisplay.style.webkitTextStroke = '3px rgba(0,0,0,0.6)';
+            } else if (fontType === 'outlined') {
+                // Outlined grueso
+                timerDisplay.style.fontFamily = "'Arial Black', 'Arial', sans-serif";
+                timerDisplay.style.letterSpacing = '0.1em';
+                timerDisplay.style.fontWeight = 'bold';
+                timerDisplay.style.webkitTextStroke = '4px #000000';
+                timerDisplay.style.textShadow = '0 0 20px rgba(255,255,255,0.5), 3px 3px 8px rgba(0,0,0,0.6)';
+            } else if (fontType === 'gradient') {
+                // 3D con gradiente
+                timerDisplay.style.fontFamily = "'Arial Black', 'Arial', sans-serif";
+                timerDisplay.style.letterSpacing = '0.08em';
+                timerDisplay.style.fontWeight = 'bold';
+                timerDisplay.style.textShadow = '2px 2px 0px rgba(0,0,0,0.3), 4px 4px 0px rgba(0,0,0,0.2), 6px 6px 0px rgba(0,0,0,0.1), 8px 8px 0px rgba(0,0,0,0.05), 10px 10px 15px rgba(0,0,0,0.5)';
+                timerDisplay.style.filter = 'brightness(1.1)';
+            } else { // normal
+                timerDisplay.style.fontFamily = 'Arial, sans-serif';
+                timerDisplay.style.letterSpacing = 'normal';
+                timerDisplay.style.fontWeight = 'bold';
+            }
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateDisplay() {
+            const settings = loadSettings();
+            timerDisplay.textContent = formatTime(timeRemaining);
+            
+            // Agregar o quitar animación de oscilación durante la fase final
+            if (endingPhase) {
+                timerDisplay.classList.add('ending');
+            } else {
+                timerDisplay.classList.remove('ending');
+            }
+            
+            // Aplicar colores según el tiempo restante usando colores personalizados
+            if (endingPhase) {
+                // Durante la fase final, usar el color de los últimos 10 segundos
+                timerDisplay.style.color = settings.color10sec;
+            } else if (timeRemaining <= 10 && isRunning) {
+                timerDisplay.style.color = settings.color10sec;
+            } else if (timeRemaining <= 30 && isRunning) {
+                timerDisplay.style.color = settings.color30sec;
+            } else if (isRunning) {
+                timerDisplay.style.color = settings.colorNormal;
+            } else {
+                timerDisplay.style.color = settings.colorReady;
+            }
+        }
+
+        function startTimer() {
+            isRunning = true;
+            timerDisplay.classList.remove('ready');
+            
+            // Notificar a la ventana de control que el timer ha iniciado
+            channel.postMessage({ type: 'timer-started' });
+            
+            let Played1m = false;
+            let Played2m = false;
+            let Played10 = false;
+            let Played9 = false;
+            let Played8 = false;
+            let Played7 = false;
+            let Played6 = false;
+            let Played5 = false;
+            let Played4 = false;
+            let Played3 = false;
+            let Played2 = false;
+            let Played1 = false;
+            let Played30 = false;
+            
+            // Enviar señal para reproducir el sonido de inicio
+            channel.postMessage({ type: 'play-sound', sound: 'charger' });
+
+            timerInterval = setInterval(() => {
+                // Cargar configuraciones en cada tick para aplicar cambios en tiempo real
+                const settings = loadSettings();
+                
+                timeRemaining--;
+                updateDisplay();
+
+                // Enviar actualización del tiempo a control.html
+                channel.postMessage({ 
+                    type: 'timer-tick', 
+                    timeRemaining: timeRemaining 
+                });
+
+                if (timeRemaining === 30 && !Played30 && settings.announce30sec) {
+                    Played30 = true;
+                    channel.postMessage({ type: 'play-sound', sound: '30sec' });
+                }
+                if (settings.announce10sec) {
+                    if (timeRemaining === 10 && !Played10) {
+                        Played10 = true;
+                        channel.postMessage({ type: 'play-sound', sound: '10' });
+                    }
+                    if (timeRemaining === 9 && !Played9) {
+                        Played9 = true;
+                        channel.postMessage({ type: 'play-sound', sound: '9' });
+                    }
+                    if (timeRemaining === 8 && !Played8) {
+                        Played8 = true;
+                        channel.postMessage({ type: 'play-sound', sound: '8' });
+                    }
+                    if (timeRemaining === 7 && !Played7) {
+                        Played7 = true;
+                        channel.postMessage({ type: 'play-sound', sound: '7' });
+                    }
+                    if (timeRemaining === 6 && !Played6) {
+                        Played6 = true;
+                        channel.postMessage({ type: 'play-sound', sound: '6' });
+                    }
+                    if (timeRemaining === 5 && !Played5) {
+                        Played5 = true;
+                        channel.postMessage({ type: 'play-sound', sound: '5' });
+                    }
+                    if (timeRemaining === 4 && !Played4) {
+                        Played4 = true;
+                        channel.postMessage({ type: 'play-sound', sound: '4' });
+                    }
+                    if (timeRemaining === 3 && !Played3) {
+                        Played3 = true;
+                        channel.postMessage({ type: 'play-sound', sound: '3' });
+                    }
+                    if (timeRemaining === 2 && !Played2) {
+                        Played2 = true;
+                        channel.postMessage({ type: 'play-sound', sound: '2' });
+                    }
+                    if (timeRemaining === 1 && !Played1) {
+                        Played1 = true;
+                        channel.postMessage({ type: 'play-sound', sound: '1' });
+                    }
+                }
+                if (timeRemaining === 60 && !Played1m && settings.announce1min) {
+                    Played1m = true;
+                    channel.postMessage({ type: 'play-sound', sound: '1min' });
+                }
+                if (timeRemaining === 120 && !Played2m && settings.announce2min) {
+                    Played2m = true;
+                    channel.postMessage({ type: 'play-sound', sound: '2min' });
+                }
+
+                if (timeRemaining <= 0) {
+                    endTimer();
+                }
+            }, 1000);
+        }
+
+        function endTimer() {
+            clearInterval(timerInterval);
+            isRunning = false;
+            timeRemaining = 0;
+            endingPhase = true;
+            updateDisplay();
+
+            // Enviar señal para reproducir el buzzer
+            channel.postMessage({ type: 'play-sound', sound: 'buzzer' });
+            
+            // Countdown de los 30 segundos de espera
+            let remainingEndTime = END_DISPLAY_TIME;
+            
+            // Notificar inicio de espera
+            channel.postMessage({ 
+                type: 'status-update', 
+                message: `⏰ ¡Tiempo terminado! Esperando ${remainingEndTime} segundos...` 
+            });
+
+            // Intervalo para actualizar el countdown cada segundo
+            const endCountdownInterval = setInterval(() => {
+                remainingEndTime--;
+                if (remainingEndTime > 0) {
+                    channel.postMessage({ 
+                        type: 'status-update', 
+                        message: `⏳ Finalizando en ${remainingEndTime} segundos...` 
+                    });
+                } else {
+                    clearInterval(endCountdownInterval);
+                }
+            }, 1000);
+
+            setTimeout(() => {
+                clearInterval(endCountdownInterval);
+                resetTimer();
+                
+                // Cerrar la ventana si está habilitada la opción
+                const settings = loadSettings();
+                if (settings.closeAfter30sec) {
+                    window.close();
+                }
+            }, END_DISPLAY_TIME * 1000);
+        }
+
+        function resetTimer() {
+            timeRemaining = TOTAL_TIME;
+            endingPhase = false;
+            updateDisplay();
+            updateLogosClickableState();
+            
+            // Notificar reset
+            channel.postMessage({ 
+                type: 'status-update', 
+                message: '🔄 Temporizador finalizado y reseteado' 
+            });
+            
+            // Notificar a la ventana de control que el timer se ha reseteado
+            // La ventana se cerrará desde el panel de control
+            channel.postMessage({ type: 'timer-reset' });
+        }
+
+        // Escuchar mensajes del panel de control
+        channel.addEventListener('message', (event) => {
+            const { type } = event.data;
+            
+            if (type === 'prepare-timer') {
+                const settings = loadSettings();
+                timeRemaining = TOTAL_TIME;
+                updateDisplay();
+            } else if (type === 'start-timer') {
+                startTimer();
+                updateLogosClickableState();
+            } else if (type === 'reset-timer') {
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                }
+                isRunning = false;
+                timeRemaining = TOTAL_TIME;
+                updateDisplay();
+                updateLogosClickableState();
+            } else if (type === 'settings-changed') {
+                // Las configuraciones han cambiado - aplicar nuevos estilos
+                applyBackgroundColor();
+                applyBackgroundVisibility();
+                applyLogosVisibility();
+                applyLogoImages();
+                applyFontStyle();
+                updateDisplay();
+                
+                // Verificar si se debe mostrar u ocultar el overlay según la configuración
+                const settings = loadSettings();
+                if (settings.closeAfter30sec && !hasStoredPosition()) {
+                    showPositionOverlay();
+                } else {
+                    hidePositionOverlay();
+                }
+                
+                channel.postMessage({ 
+                    type: 'status-update', 
+                    message: '⚙️ Configuraciones actualizadas' 
+                });
+            } else if (type === 'save-position') {
+                // Guardar la posición y tamaño actuales de la ventana
+                // Usar innerWidth/innerHeight para que coincida exactamente al abrir
+                localStorage.setItem('windowLeft', window.screenX.toString());
+                localStorage.setItem('windowTop', window.screenY.toString());
+                localStorage.setItem('windowWidth', (window.innerWidth-10).toString());
+                localStorage.setItem('windowHeight', (window.innerHeight-19).toString());
+                
+                // Ocultar el overlay
+                hidePositionOverlay();
+                
+                // Confirmar que se guardó la posición
+                channel.postMessage({ type: 'position-saved' });
+                
+                // Cerrar la ventana solo si la opción está activada
+                const settingsSave = loadSettings();
+                if (settingsSave.closeAfter30sec) {
+                    //window.close();
+                }
+            } else if (type === 'forget-position') {
+                // Mostrar el overlay solo si la opción de cerrar está activada
+                const settings = loadSettings();
+                if (settings.closeAfter30sec) {
+                    showPositionOverlay();
+                }
+            }
+        });
+
+        // Funciones para el overlay de posición
+        function hasStoredPosition() {
+            return localStorage.getItem('windowLeft') !== null;
+        }
+
+        function showPositionOverlay() {
+            if (positionOverlay) {
+                positionOverlay.classList.remove('hidden');
+            }
+        }
+
+        function hidePositionOverlay() {
+            if (positionOverlay) {
+                positionOverlay.classList.add('hidden');
+            }
+        }
+
+        // Evento de click en el overlay para guardar la posición
+        if (positionOverlay) {
+            positionOverlay.addEventListener('click', function() {
+                // Guardar la posición y tamaño actuales de la ventana
+                localStorage.setItem('windowLeft', window.screenX.toString());
+                localStorage.setItem('windowTop', window.screenY.toString());
+                localStorage.setItem('windowWidth', (window.innerWidth-10).toString());
+                localStorage.setItem('windowHeight', (window.innerHeight-19).toString());
+                
+                // Ocultar el overlay
+                hidePositionOverlay();
+                
+                // Confirmar que se guardó la posición
+                channel.postMessage({ type: 'position-saved' });
+                
+                // Cerrar la ventana solo si la opción está activada
+                const settingsClick = loadSettings();
+                if (settingsClick.closeAfter30sec) {
+                    //window.close();
+                }
+            });
+        }
+
+        // Función para actualizar el estado clickeable de los logos
+        function updateLogosClickableState() {
+            const canStart = !isRunning && timeRemaining === TOTAL_TIME && !endingPhase;
+            [logoLeft, logoCenter, logoRight].forEach(logo => {
+                if (logo) {
+                    if (canStart) {
+                        logo.classList.remove('disabled');
+                    } else {
+                        logo.classList.add('disabled');
+                    }
+                }
+            });
+        }
+
+        // Event listeners para iniciar el timer al hacer click en los logos
+        function handleLogoClick() {
+            // Solo iniciar si el temporizador está sin iniciar
+            if (!isRunning && timeRemaining === TOTAL_TIME && !endingPhase) {
+                startTimer();
+                updateLogosClickableState();
+            }
+        }
+
+        if (logoLeft) logoLeft.addEventListener('click', handleLogoClick);
+        if (logoCenter) logoCenter.addEventListener('click', handleLogoClick);
+        if (logoRight) logoRight.addEventListener('click', handleLogoClick);
+
+        // Inicializar estilos y display
+        applyBackgroundColor();
+        applyBackgroundVisibility();
+        applyLogosVisibility();
+        applyLogoImages();
+        applyFontStyle();
+        updateDisplay();
+        updateLogosClickableState();
+
+        // Verificar si hay posición guardada y mostrar/ocultar overlay
+        // Solo mostrar overlay si la opción de cerrar tras 30 seg está activada
+        const settings = loadSettings();
+        if (settings.closeAfter30sec && !hasStoredPosition()) {
+            showPositionOverlay();
+        } else {
+            hidePositionOverlay();
+        }
+    </script>
+</body>
+</html>

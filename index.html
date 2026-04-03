@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FLL Timer - Panel de Control</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -25,8 +26,9 @@
             border-radius: 15px;
             padding: 25px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            max-width: 500px;
-            width: 100%;
+            width: 95vw;
+            max-width: 900px;
+            min-width: 300px;
             margin: 0 auto;
         }
 
@@ -42,9 +44,11 @@
         .button-section {
             margin-bottom: 25px;
             text-align: center;
+            display: flex;
+            gap: 10px;
         }
 
-        #controlButton {
+        #timerButton {
             padding: 20px 40px;
             font-size: 24px;
             font-weight: bold;
@@ -54,38 +58,61 @@
             border-radius: 10px;
             cursor: pointer;
             transition: all 0.3s ease;
-            width: 100%;
+            flex: 1;
             text-transform: uppercase;
             letter-spacing: 1px;
             box-shadow: 0 4px 15px rgba(30, 60, 114, 0.3);
         }
 
-        #controlButton:hover {
+        #timerButton:hover {
             background-color: #2a5298;
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(30, 60, 114, 0.4);
         }
 
-        #controlButton:active {
+        #timerButton:active {
             transform: translateY(0);
         }
 
-        #controlButton.ready {
+        #startButton {
+            padding: 20px 40px;
+            font-size: 24px;
+            font-weight: bold;
             background-color: #00aa00;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            text-transform: uppercase;
+            letter-spacing: 1px;
             box-shadow: 0 4px 15px rgba(0, 170, 0, 0.3);
         }
 
-        #controlButton.ready:hover {
+        #startButton:hover:not(:disabled) {
             background-color: #008800;
+            transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(0, 170, 0, 0.4);
         }
 
-        #controlButton.running {
+        #startButton:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        #startButton:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+            opacity: 0.5;
+            box-shadow: none;
+        }
+
+        #startButton.running {
             background-color: #666666;
             cursor: not-allowed;
         }
 
-        #controlButton.running:hover {
+        #startButton.running:hover {
             background-color: #666666;
             transform: none;
         }
@@ -97,6 +124,68 @@
             margin-bottom: 15px;
         }
 
+        /* Partidas section */
+        .partidas-table-wrap {
+            overflow-x: auto;
+            margin-top: 8px;
+        }
+
+        #partidasTable {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            min-width: 320px;
+        }
+
+        #partidasTable th {
+            background: #1e3c72;
+            color: white;
+            padding: 5px 7px;
+            text-align: center;
+            border: 1px solid #1e3c72;
+            white-space: nowrap;
+        }
+
+        #partidasTable td {
+            padding: 3px 5px;
+            border: 1px solid #ddd;
+            vertical-align: middle;
+        }
+
+        #partidasTable tr.partida-activa td {
+            background-color: #d4edda;
+        }
+
+        #partidasTable td input[type="text"] {
+            width: 100%;
+            padding: 2px 4px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            font-size: 12px;
+            box-sizing: border-box;
+        }
+
+        #partidasTable td input[type="radio"] {
+            cursor: pointer;
+            accent-color: #1e3c72;
+        }
+
+        .load-excel-btn {
+            padding: 7px 14px;
+            background-color: #1e7a34;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        .load-excel-btn:hover {
+            background-color: #155a26;
+        }
+
         .settings-section h2 {
             color: #1e3c72;
             font-size: 16px;
@@ -106,8 +195,17 @@
             gap: 6px;
         }
 
+        /* Team panel inside partidas */
+        #partidasTeamPanel > div {
+            gap: 6px;
+        }
+
+        #partidasTeamPanel > div > div {
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+
         .settings-section h2::before {
-            content: "⚙️";
+            content: var(--icon, "⚙️");
         }
 
         .setting-item {
@@ -230,12 +328,58 @@
         }
 
         .settings-content {
-            max-height: 1000px;
+            max-height: 8000px;
             overflow: hidden;
-            transition: max-height 0.3s ease;
+            transition: max-height 0.4s ease;
         }
 
         .settings-content.collapsed {
+            max-height: 0;
+        }
+
+        .subsection-header {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 8px;
+            background-color: #dde8ff;
+            border-radius: 5px;
+            margin-bottom: 3px;
+            transition: background-color 0.15s;
+        }
+
+        .subsection-header:hover {
+            background-color: #c5d5f5;
+        }
+
+        .subsection-title {
+            font-size: 13px;
+            color: #1e3c72;
+            font-weight: bold;
+        }
+
+        .subsection-icon {
+            font-size: 12px;
+            transition: transform 0.2s ease;
+            color: #1e3c72;
+        }
+
+        .subsection-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .subsection-content {
+            overflow: hidden;
+            transition: max-height 0.25s ease;
+            max-height: 8000px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .subsection-content.collapsed {
             max-height: 0;
         }
 
@@ -326,6 +470,121 @@
             opacity: 1;
             transition: opacity 0.3s ease;
         }
+
+        .led-section {
+            margin-bottom: 20px;
+        }
+
+        .connect-button {
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #2d7d46;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 8px;
+            box-shadow: 0 3px 10px rgba(45, 125, 70, 0.3);
+        }
+
+        .connect-button:hover {
+            background-color: #1e5c32;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(45, 125, 70, 0.4);
+        }
+
+        .connect-button:active {
+            transform: translateY(0);
+        }
+
+        .connect-button.connected {
+            background-color: #555;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        }
+
+        .connect-button.connected:hover {
+            background-color: #444;
+        }
+
+        .led-status {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            padding: 5px 8px;
+            background-color: #f5f5f5;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .led-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .led-action-btn {
+            flex: 1;
+            padding: 14px 8px;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .led-action-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .led-action-btn.partida {
+            background-color: #1a8a2a;
+            box-shadow: 0 3px 8px rgba(26, 138, 42, 0.35);
+        }
+
+        .led-action-btn.partida:not(:disabled):hover {
+            background-color: #156a20;
+            transform: translateY(-2px);
+        }
+
+        .led-action-btn.fin {
+            background-color: #cc3300;
+            box-shadow: 0 3px 8px rgba(204, 51, 0, 0.35);
+        }
+
+        .led-action-btn.fin:not(:disabled):hover {
+            background-color: #aa2200;
+            transform: translateY(-2px);
+        }
+
+        .led-action-btn.reposo {
+            background-color: #1e3c72;
+            box-shadow: 0 3px 8px rgba(30, 60, 114, 0.35);
+        }
+
+        .led-action-btn.reposo:not(:disabled):hover {
+            background-color: #152b55;
+            transform: translateY(-2px);
+        }
+
+        .led-action-btn.tk-ready {
+            background-color: #007a3d;
+            box-shadow: 0 3px 8px rgba(0, 122, 61, 0.35);
+        }
+
+        .led-action-btn.tk-ready:not(:disabled):hover {
+            background-color: #005c2e;
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
@@ -336,7 +595,173 @@
         </div>
 
         <div class="button-section">
-            <button id="controlButton">Temporizador</button>
+            <button id="timerButton">Temporizador</button>
+            <button id="startButton" disabled>Inicio</button>
+        </div>
+
+        <div class="led-section" id="ledSection">
+            <button id="btnConnect" class="connect-button">🔌 Conectar Leds USB (ESP32)</button>
+            <div id="ledStatusBar" class="led-status">Desconectado</div>
+            <div id="ledControls" class="led-controls" style="display:none">
+                <button id="btnTimekeeperReady" class="led-action-btn tk-ready" disabled>Timekeeper READY</button>
+            </div>
+            <div id="partidasTeamPanel" style="display:none;"></div>
+        </div>
+
+        <div class="settings-section" id="esp32ConnectedGroup" style="display:none">
+            <div class="settings-header" id="ledsHeader">
+                <h2 style="--icon:'💡'">Leds</h2>
+                <span class="collapse-icon collapsed" id="ledsCollapseIcon">▼</span>
+            </div>
+            <div class="settings-content collapsed" id="ledsContent">
+            <div class="setting-item" style="flex-direction:column;align-items:stretch;gap:8px;">
+                <table id="esp32ConfigTable" style="width:100%;border-collapse:collapse;font-size:12px;">
+                    <thead>
+                        <tr style="background:#e8f0ff;">
+                            <th style="padding:4px 6px;text-align:left;border:1px solid #ccc;font-weight:600;">ID</th>
+                            <th style="padding:4px 6px;text-align:left;border:1px solid #ccc;font-weight:600;">Nombre a mostrar</th>
+                            <th style="padding:4px 6px;text-align:center;border:1px solid #ccc;font-weight:600;">Orden</th>
+                            <th style="padding:4px 6px;text-align:center;border:1px solid #ccc;font-weight:600;">Estado</th>
+                            <th style="padding:4px 6px;border:1px solid #ccc;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="esp32ConfigBody"></tbody>
+                </table>
+                <button id="addEsp32Row" style="padding:5px 10px;background:#1e3c72;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;align-self:flex-start;">+ Añadir ID manualmente</button>
+            </div>
+            <div class="setting-item">
+                <button id="btnReset" class="led-action-btn reposo" disabled>TODOS A REPOSO</button>
+            </div>
+            </div>
+        </div>
+
+        <div class="settings-section" id="partidasSection">
+            <div class="settings-header" id="partidasHeader">
+                <h2 style="--icon:'🏁'">Partidas</h2>
+                <span class="collapse-icon collapsed" id="partidasCollapseIcon">▼</span>
+            </div>
+            <div class="settings-content collapsed" id="partidasContent">
+                <div class="setting-item" style="flex-direction:column;align-items:stretch;gap:4px;padding:4px 6px;">
+                    <div class="subsection-header">
+                        <span class="subsection-title">🎨 Apariencia panel partidas</span>
+                        <span class="subsection-icon collapsed">▼</span>
+                    </div>
+                    <div class="subsection-content collapsed">
+                        <div class="setting-item">
+                            <span class="color-label">📏 Altura panel (%):</span>
+                            <input type="range" id="partidasPanelHeight" min="5" max="50" value="15" style="flex:1;cursor:pointer;">
+                            <span id="partidasPanelHeightLabel" style="font-size:12px;color:#555;min-width:36px;text-align:right;">15%</span>
+                        </div>
+                        <div class="setting-item">
+                            <span class="color-label">🎨 Color de fondo:</span>
+                            <input type="color" id="partidasBgColor" value="#000000">
+                        </div>
+                        <div class="setting-item">
+                            <span class="color-label">🔆 Opacidad fondo (%):</span>
+                            <input type="range" id="partidasBgOpacity" min="0" max="100" value="65" style="flex:1;cursor:pointer;">
+                            <span id="partidasBgOpacityLabel" style="font-size:12px;color:#555;min-width:36px;text-align:right;">65%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-item" style="flex-direction:column;align-items:stretch;gap:4px;padding:4px 6px;">
+                    <div class="subsection-header">
+                        <span class="subsection-title">🚦 Colores de estado LED</span>
+                        <span class="subsection-icon collapsed">▼</span>
+                    </div>
+                    <div class="subsection-content collapsed">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;">
+                            <div class="setting-item" style="gap:6px;">
+                                <span class="color-label" style="min-width:0;font-size:11px;">⏸️ Reposo:</span>
+                                <input type="color" id="stateColor0" value="#3c3c3c">
+                                <input type="color" id="stateTextColor0" value="#cccccc" title="Color del texto">
+                            </div>
+                            <div class="setting-item" style="gap:6px;">
+                                <span class="color-label" style="min-width:0;font-size:11px;">⚡ Preparación:</span>
+                                <input type="color" id="stateColor1" value="#e6b400">
+                                <input type="color" id="stateTextColor1" value="#000000" title="Color del texto">
+                            </div>
+                            <div class="setting-item" style="gap:6px;">
+                                <span class="color-label" style="min-width:0;font-size:11px;">⏩ Must-go:</span>
+                                <input type="color" id="stateColor2" value="#dc6400">
+                                <input type="color" id="stateTextColor2" value="#ffffff" title="Color del texto">
+                            </div>
+                            <div class="setting-item" style="gap:6px;">
+                                <span class="color-label" style="min-width:0;font-size:11px;">✅ Ready:</span>
+                                <input type="color" id="stateColor3" value="#0aaa28">
+                                <input type="color" id="stateTextColor3" value="#ffffff" title="Color del texto">
+                            </div>
+                            <div class="setting-item" style="gap:6px;">
+                                <span class="color-label" style="min-width:0;font-size:11px;">🏁 Partida:</span>
+                                <input type="color" id="stateColor4" value="#0a50d2">
+                                <input type="color" id="stateTextColor4" value="#ffffff" title="Color del texto">
+                            </div>
+                            <div class="setting-item" style="gap:6px;">
+                                <span class="color-label" style="min-width:0;font-size:11px;">🛑 Final:</span>
+                                <input type="color" id="stateColor5" value="#d21400">
+                                <input type="color" id="stateTextColor5" value="#ffffff" title="Color del texto">
+                            </div>
+                        </div>
+                        <div style="font-size:10px;color:#888;padding:2px 4px;">El segundo color es el del texto</div>
+                    </div>
+                </div>
+
+                <div class="setting-item" style="flex-direction:column;align-items:stretch;gap:4px;padding:4px 6px;">
+                    <div class="subsection-header">
+                        <span class="subsection-title">📢 Anuncio equipo</span>
+                        <span class="subsection-icon collapsed">▼</span>
+                    </div>
+                    <div class="subsection-content collapsed">
+                    <div class="setting-item">
+                        <span class="color-label">📏 Tamaño texto (vw):</span>
+                        <input type="range" id="announceTextSize" min="3" max="30" value="10" style="flex:1;cursor:pointer;">
+                        <span id="announceTextSizeLabel" style="font-size:12px;color:#555;min-width:36px;text-align:right;">10vw</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="color-label">🎨 Color texto:</span>
+                        <input type="color" id="announceTextColor" value="#ffffff">
+                    </div>
+                    <div class="setting-item">
+                        <span class="color-label">🎨 Color reborde:</span>
+                        <input type="color" id="announceStrokeColor" value="#000000">
+                    </div>
+                    <div class="setting-item">
+                        <span class="color-label">📏 Grosor reborde (em):</span>
+                        <input type="range" id="announceStrokeWidth" min="0" max="30" value="12" style="flex:1;cursor:pointer;">
+                        <span id="announceStrokeWidthLabel" style="font-size:12px;color:#555;min-width:42px;text-align:right;">0.12em</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="color-label">📍 Altura (%):</span>
+                        <input type="range" id="announceTextTop" min="0" max="100" value="50" style="flex:1;cursor:pointer;">
+                        <span id="announceTextTopLabel" style="font-size:12px;color:#555;min-width:36px;text-align:right;">50%</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="color-label">↔️ Desplazamiento horizontal (%):</span>
+                        <input type="range" id="announceTextOffsetX" min="-50" max="50" value="0" style="flex:1;cursor:pointer;">
+                        <span id="announceTextOffsetXLabel" style="font-size:12px;color:#555;min-width:36px;text-align:right;">0%</span>
+                    </div>
+                    <div class="setting-item">
+                        <span class="color-label">↔️ Anchura máxima (%):</span>
+                        <input type="range" id="announceMaxWidth" min="20" max="100" value="90" style="flex:1;cursor:pointer;">
+                        <span id="announceMaxWidthLabel" style="font-size:12px;color:#555;min-width:36px;text-align:right;">90%</span>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="setting-item" style="gap:8px;flex-wrap:wrap;">
+                    <button class="load-excel-btn" id="btnLoadExcel">📂 Cargar Excel</button>
+                    <button class="led-action-btn" id="btnAddPartida" style="background:#1e7a34;padding:5px 10px;font-size:12px;">+ Añadir fila</button>
+                    <button class="led-action-btn reposo" id="btnClearPartidas" style="padding:5px 10px;font-size:12px;">🗑️ Borrar tabla</button>
+                    <input type="file" id="excelFileInput" accept=".xlsx,.xls,.ods,.csv" style="display:none">
+                    <span id="partidasFileName" style="font-size:11px;color:#666;"></span>
+                </div>
+                <div class="partidas-table-wrap">
+                    <table id="partidasTable">
+                        <thead id="partidasTableHead"></thead>
+                        <tbody id="partidasTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <div class="settings-section">
@@ -353,6 +778,13 @@
 
                 <button id="openTimerButton" class="open-timer-button">🔄 Reinicio Temporizador</button>
 
+
+            <div class="setting-item" style="flex-direction:column;align-items:stretch;gap:4px;padding:4px 6px;">
+                <div class="subsection-header">
+                    <span class="subsection-title">🔊 Anuncios de voz</span>
+                    <span class="subsection-icon collapsed">▼</span>
+                </div>
+                <div class="subsection-content collapsed">
             <div class="setting-item">
             <label>
                     <input type="checkbox" id="announce2min" checked>
@@ -380,25 +812,88 @@
                     🔊 Anunciar 10 segundos
                 </label>
             </div>
-
-            <div class="setting-item">
-                <label>
-                    <input type="checkbox" id="showLogos" checked>
-                    🖼️ Mostrar logotipos
-                </label>
+                </div>
             </div>
 
-            <div class="setting-item">
-                <label>
-                    <input type="checkbox" id="showBackground" checked>
-                    🖼️ Mostrar imagen de fondo
-                </label>
-            </div>
 
             <div class="setting-item">
                 <label>
                     <input type="checkbox" id="closeAfter30sec" checked>
-                    ⏱️ Cerrar temporizador 30 seg. después de finalizar
+                    ⏱️ Cerrar ventana temporizador 30 seg. después de finalizar
+                </label>
+            </div>
+
+            <div class="setting-item" style="flex-direction:column;align-items:stretch;gap:4px;padding:4px 6px;">
+                <div class="subsection-header">
+                    <span class="subsection-title">🖼️ Logotipos</span>
+                    <span class="subsection-icon collapsed">▼</span>
+                </div>
+                <div class="subsection-content collapsed">
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="showLogos" checked>
+                        🖼️ Mostrar logotipos
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="logosMarquee" checked>
+                        🔄 Rotativo (logos en movimiento)
+                    </label>
+                </div>
+
+                <div class="setting-item">
+                    <span class="color-label">🔃 Orientación:</span>
+                    <select id="logosOrientation">
+                        <option value="horizontal" selected>Horizontal (franja inferior)</option>
+                        <option value="vertical">Vertical (columna izquierda)</option>
+                    </select>
+                </div>
+
+                <div class="setting-item" id="logosVerticalWidthRow" style="display:none;">
+                    <span class="color-label">↔️ Anchura columna (%):</span>
+                    <input type="range" id="logosVerticalWidth" min="3" max="40" value="10" style="flex:1;cursor:pointer;">
+                    <span id="logosVerticalWidthLabel" style="font-size:12px;color:#555;min-width:36px;text-align:right;">10%</span>
+                </div>
+
+                <div class="setting-item" style="flex-direction:column;align-items:stretch;gap:6px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-size:13px;color:#333;font-weight:bold;">🖼️ Logotipos (franja inferior):</span>
+                        <button id="btnAddLogo" style="padding:3px 10px;background:#1e3c72;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;">+ Añadir</button>
+                    </div>
+                    <div id="logosArrayList" style="display:flex;flex-direction:column;gap:4px;"></div>
+                </div>
+
+                <div class="setting-item">
+                    <span class="color-label">🎨 Color capa de logos:</span>
+                    <input type="color" id="logosBgColor" value="#000000">
+                </div>
+
+                <div class="setting-item">
+                    <span class="color-label">🔆 Opacidad capa (%):</span>
+                    <input type="range" id="logosBgOpacity" min="0" max="100" value="70" style="flex:1;cursor:pointer;">
+                    <span id="logosBgOpacityLabel" style="font-size:12px;color:#555;min-width:36px;text-align:right;">70%</span>
+                </div>
+
+                <div class="setting-item">
+                    <span class="color-label">📏 Altura franja logotipos (%):</span>
+                    <input type="range" id="logosStripHeight" min="5" max="70" value="20" style="flex:1;cursor:pointer;">
+                    <span id="logosStripHeightLabel" style="font-size:12px;color:#555;min-width:36px;text-align:right;">20%</span>
+                </div>
+                </div>
+            </div>
+
+            
+            <div class="setting-item" style="flex-direction:column;align-items:stretch;gap:4px;padding:4px 6px;">
+                <div class="subsection-header">
+                    <span class="subsection-title">🖼️ Fondo</span>
+                    <span class="subsection-icon collapsed">▼</span>
+                </div>
+                <div class="subsection-content collapsed">
+            <div class="setting-item">
+                <label>
+                    <input type="checkbox" id="showBackground" checked>
+                    🖼️ Mostrar imagen de fondo
                 </label>
             </div>
 
@@ -412,70 +907,137 @@
             </div>
 
             <div class="setting-item">
-                <span class="color-label">🖼️ Logo izquierdo:</span>
-                <div class="file-input-container">
-                    <input type="text" id="logoLeftPath" value="isoy-tr-brgh-768x178.png" placeholder="ruta/imagen.png">
-                    <button class="file-select-btn" onclick="selectFile('logoLeftPath')">📁</button>
-                </div>
-                <input type="file" id="logoLeftFile" accept="image/*" style="display: none;">
-            </div>
-
-            <div class="setting-item">
-                <span class="color-label">🖼️ Logo central:</span>
-                <div class="file-input-container">
-                    <input type="text" id="logoCenterPath" value="first_age_fll_unearthed_white.png" placeholder="ruta/imagen.png">
-                    <button class="file-select-btn" onclick="selectFile('logoCenterPath')">📁</button>
-                </div>
-                <input type="file" id="logoCenterFile" accept="image/*" style="display: none;">
-            </div>
-
-            <div class="setting-item">
-                <span class="color-label">🖼️ Logo derecho:</span>
-                <div class="file-input-container">
-                    <input type="text" id="logoRightPath" value="FIRSTLego-SPAIN-logo-small_white.png" placeholder="ruta/imagen.png">
-                    <button class="file-select-btn" onclick="selectFile('logoRightPath')">📁</button>
-                </div>
-                <input type="file" id="logoRightFile" accept="image/*" style="display: none;">
-            </div>
-
-            <div class="setting-item">
                 <span class="color-label">🎨 Color de fondo:</span>
                 <input type="color" id="colorBackground" value="#000000">
             </div>
-
-            <div class="setting-item">
-                <span class="color-label">🎨 Color reposo:</span>
-                <input type="color" id="colorReady" value="#ffff00">
+                </div>
             </div>
 
-            <div class="setting-item">
-                <span class="color-label">🎨 Color 2:30:</span>
-                <input type="color" id="colorNormal" value="#00ff00">
+            <div class="setting-item" style="flex-direction:column;align-items:stretch;gap:4px;padding:4px 6px;">
+                <div class="subsection-header">
+                    <span class="subsection-title">⏱️ Temporizador</span>
+                    <span class="subsection-icon collapsed">▼</span>
+                </div>
+                <div class="subsection-content collapsed">
+                <div class="setting-item">
+                    <span class="color-label">📍 Posición en altura (%):</span>
+                    <input type="range" id="timerPositionY" min="0" max="100" value="50" style="flex:1;cursor:pointer;">
+                    <span id="timerPositionYLabel" style="font-size:12px;color:#555;min-width:36px;text-align:right;">50%</span>
+                </div>
+
+                <div class="setting-item">
+                    <span class="color-label">📍 Posición en anchura (%):</span>
+                    <input type="range" id="timerPositionX" min="0" max="100" value="50" style="flex:1;cursor:pointer;">
+                    <span id="timerPositionXLabel" style="font-size:12px;color:#555;min-width:36px;text-align:right;">50%</span>
+                </div>
+
+                <div class="setting-item">
+                    <span class="color-label">↔️ Anchura (%):</span>
+                    <input type="range" id="timerWidth" min="0" max="100" value="90" style="flex:1;cursor:pointer;">
+                    <span id="timerWidthLabel" style="font-size:12px;color:#555;min-width:36px;text-align:right;">90%</span>
+                </div>
+
+                <div class="setting-item">
+                    <span class="color-label">🎨 Color capa temporizador:</span>
+                    <input type="color" id="timerBgColor" value="#000000">
+                </div>
+
+                <div class="setting-item">
+                    <span class="color-label">🔆 Opacidad capa (%):</span>
+                    <input type="range" id="timerBgOpacity" min="0" max="100" value="0" style="flex:1;cursor:pointer;">
+                    <span id="timerBgOpacityLabel" style="font-size:12px;color:#555;min-width:36px;text-align:right;">0%</span>
+                </div>
+
+                <div class="setting-item">
+                    <span class="color-label">📐 Margen capa (px):</span>
+                    <input type="range" id="timerBgPadding" min="0" max="80" value="0" style="flex:1;cursor:pointer;">
+                    <span id="timerBgPaddingLabel" style="font-size:12px;color:#555;min-width:36px;text-align:right;">0px</span>
+                </div>
+
+                <div class="setting-item">
+                    <span class="color-label">🎨 Color reposo:</span>
+                    <input type="color" id="colorReady" value="#ffff00">
+                </div>
+
+                <div class="setting-item">
+                    <span class="color-label">🎨 Color 2:30:</span>
+                    <input type="color" id="colorNormal" value="#00ff00">
+                </div>
+
+                <div class="setting-item">
+                    <span class="color-label">🎨 Color 30 seg:</span>
+                    <input type="color" id="color30sec" value="#ff8800">
+                </div>
+
+                <div class="setting-item">
+                    <span class="color-label">🎨 Color 10 seg:</span>
+                    <input type="color" id="color10sec" value="#ff0000">
+                </div>
+
+                <div class="setting-item">
+                    <span class="color-label">🔤 Tipo de dígitos:</span>
+                    <select id="fontType">
+                        <option value="normal">Normal</option>
+                        <option value="rock">Rock</option>
+                        <option value="seven-segment">7 Segmentos</option>
+                        <option value="lcd">LCD Retro</option>
+                        <option value="neon-glow">Neón Brillante</option>
+                        <option value="stencil">Stencil Militar</option>
+                        <option value="outlined">Outlined</option>
+                        <option value="gradient">3D Gradient</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <span class="color-label">🎨 Color reborde contador:</span>
+                    <input type="color" id="timerStrokeColor" value="#000000">
+                </div>
+                <div class="setting-item">
+                    <span class="color-label">📏 Grosor reborde contador (em):</span>
+                    <input type="range" id="timerStrokeWidth" min="0" max="30" value="0" style="flex:1;cursor:pointer;">
+                    <span id="timerStrokeWidthLabel" style="font-size:12px;color:#555;min-width:42px;text-align:right;">0.00em</span>
+                </div>
+                <div class="setting-item">
+                    <span class="color-label">🎨 Color reborde textos:</span>
+                    <input type="color" id="textsStrokeColor" value="#000000">
+                </div>
+                <div class="setting-item">
+                    <span class="color-label">📏 Grosor reborde textos (em):</span>
+                    <input type="range" id="textsStrokeWidth" min="0" max="30" value="0" style="flex:1;cursor:pointer;">
+                    <span id="textsStrokeWidthLabel" style="font-size:12px;color:#555;min-width:42px;text-align:right;">0.00em</span>
+                </div>
+                </div>
             </div>
 
-            <div class="setting-item">
-                <span class="color-label">🎨 Color 30 seg:</span>
-                <input type="color" id="color30sec" value="#ff8800">
+            <div class="setting-item" style="flex-direction:column;align-items:stretch;gap:4px;padding:4px 6px;">
+                <div class="subsection-header">
+                    <span class="subsection-title">🟩 Chroma</span>
+                    <span class="subsection-icon collapsed">▼</span>
+                </div>
+                <div class="subsection-content collapsed">
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="chromaShow">
+                        👁️ Mostrar
+                    </label>
+                </div>
+
+                <div class="setting-item">
+                    <span class="color-label">🎨 Color:</span>
+                    <input type="color" id="chromaColor" value="#00ff00">
+                </div>
+
+                <div class="setting-item">
+                    <span class="color-label">📐 Posición:</span>
+                    <select id="chromaPosition">
+                        <option value="left">Izda</option>
+                        <option value="center" selected>Centro</option>
+                        <option value="right">Dcha</option>
+                    </select>
+                </div>
+                </div>
             </div>
 
-            <div class="setting-item">
-                <span class="color-label">🎨 Color 10 seg:</span>
-                <input type="color" id="color10sec" value="#ff0000">
-            </div>
-
-            <div class="setting-item">
-                <span class="color-label">🔤 Tipo de dígitos:</span>
-                <select id="fontType">
-                    <option value="normal">Normal</option>
-                    <option value="rock">Rock</option>
-                    <option value="seven-segment">7 Segmentos</option>
-                    <option value="lcd">LCD Retro</option>
-                    <option value="neon-glow">Neón Brillante</option>
-                    <option value="stencil">Stencil Militar</option>
-                    <option value="outlined">Outlined</option>
-                    <option value="gradient">3D Gradient</option>
-                </select>
-            </div>
+            <div id="esp32ConnectedGroup_placeholder" style="display:none"><!-- tabla de leds movida al desplegable Leds --></div>
 
             <div class="setting-item">
                 <button id="resetAllButton" class="action-button danger">🗑️ Borrar TODAS las configuraciones</button>
@@ -485,8 +1047,8 @@
                 <strong>ℹ️ Instrucciones:</strong>
                 A. Abre esta página en una ventana independiente que puedas hacer pequeña de modo que sólo se vea el botón.<br>
                 <strong>Partidas:</strong>
-                1. Pulsa "Temporizador" para traer al frente el temporizador<br>
-                2. Pulsa "Inicio" para comenzar la partida<br>
+                1. Pulsa "Temporizador" para abrir o traer al frente la ventana del temporizador<br>
+                2. Pulsa "Inicio" para comenzar la partida (requiere ventana abierta)<br>
                 3. Al finalizar (después de 30 seg), se reseteará
             </div>
             </div>
@@ -521,8 +1083,10 @@
         let timerWindow = null;
         let statusTimeout = null; // Para controlar el timeout de mensajes de estado
         let settingsTimeout = null; // Para controlar el debounce de configuraciones
+        let announceActiveTeam = null; // Equipo anunciado en chroma
 
-        const controlButton = document.getElementById('controlButton');
+        const timerButton = document.getElementById('timerButton');
+        const startButton = document.getElementById('startButton');
         const openTimerButton = document.getElementById('openTimerButton');
         const statusInfo = document.getElementById('statusInfo');
         const settingsHeader = document.getElementById('settingsHeader');
@@ -537,6 +1101,7 @@
         const announce30sec = document.getElementById('announce30sec');
         const announce10sec = document.getElementById('announce10sec');
         const showLogos = document.getElementById('showLogos');
+        const logosMarquee = document.getElementById('logosMarquee');
         const showBackground = document.getElementById('showBackground');
         const closeAfter30sec = document.getElementById('closeAfter30sec');
 
@@ -552,9 +1117,75 @@
 
         // Inputs de rutas de imágenes
         const backgroundImagePath = document.getElementById('backgroundImagePath');
-        const logoLeftPath = document.getElementById('logoLeftPath');
-        const logoCenterPath = document.getElementById('logoCenterPath');
-        const logoRightPath = document.getElementById('logoRightPath');
+        const logosBgColorInput = document.getElementById('logosBgColor');
+        const logosBgOpacityInput = document.getElementById('logosBgOpacity');
+        const logosBgOpacityLabel = document.getElementById('logosBgOpacityLabel');
+        const logosStripHeightInput = document.getElementById('logosStripHeight');
+        const logosStripHeightLabel = document.getElementById('logosStripHeightLabel');
+
+        // Inputs de posicionamiento del temporizador
+        const timerPositionYInput = document.getElementById('timerPositionY');
+        const timerPositionYLabel = document.getElementById('timerPositionYLabel');
+        const timerPositionXInput = document.getElementById('timerPositionX');
+        const timerPositionXLabel = document.getElementById('timerPositionXLabel');
+        const timerWidthInput = document.getElementById('timerWidth');
+        const timerWidthLabel = document.getElementById('timerWidthLabel');
+        const timerBgColorInput = document.getElementById('timerBgColor');
+        const timerBgOpacityInput = document.getElementById('timerBgOpacity');
+        const timerBgOpacityLabel = document.getElementById('timerBgOpacityLabel');
+        const timerBgPaddingInput = document.getElementById('timerBgPadding');
+        const timerBgPaddingLabel = document.getElementById('timerBgPaddingLabel');
+        const timerStrokeColorInput = document.getElementById('timerStrokeColor');
+        const timerStrokeWidthInput = document.getElementById('timerStrokeWidth');
+        const timerStrokeWidthLabel = document.getElementById('timerStrokeWidthLabel');
+        const textsStrokeColorInput = document.getElementById('textsStrokeColor');
+        const textsStrokeWidthInput = document.getElementById('textsStrokeWidth');
+        const textsStrokeWidthLabel = document.getElementById('textsStrokeWidthLabel');
+
+        // Inputs de chroma
+        const chromaShowInput = document.getElementById('chromaShow');
+        const chromaColorInput = document.getElementById('chromaColor');
+        const chromaPositionInput = document.getElementById('chromaPosition');
+
+        // Inputs de anuncio de equipo
+        const announceTextSizeInput = document.getElementById('announceTextSize');
+        const announceTextSizeLabel = document.getElementById('announceTextSizeLabel');
+        const announceTextColorInput = document.getElementById('announceTextColor');
+        const announceTextTopInput = document.getElementById('announceTextTop');
+        const announceTextTopLabel = document.getElementById('announceTextTopLabel');
+        const announceTextOffsetXInput = document.getElementById('announceTextOffsetX');
+        const announceTextOffsetXLabel = document.getElementById('announceTextOffsetXLabel');
+        const announceMaxWidthInput = document.getElementById('announceMaxWidth');
+        const announceMaxWidthLabel = document.getElementById('announceMaxWidthLabel');
+        const announceStrokeColorInput = document.getElementById('announceStrokeColor');
+        const announceStrokeWidthInput = document.getElementById('announceStrokeWidth');
+        const announceStrokeWidthLabel = document.getElementById('announceStrokeWidthLabel');
+
+        // Inputs de orientación de logos vertical
+        const logosOrientationInput = document.getElementById('logosOrientation');
+        const logosVerticalWidthInput = document.getElementById('logosVerticalWidth');
+        const logosVerticalWidthLabel = document.getElementById('logosVerticalWidthLabel');
+        const logosVerticalWidthRow = document.getElementById('logosVerticalWidthRow');
+
+        function updateLogosVerticalWidthRowVisibility() {
+            if (!logosOrientationInput || !logosVerticalWidthRow || !chromaShowInput) return;
+            const isVertical = logosOrientationInput.value === 'vertical';
+            const chromaActive = chromaShowInput.checked;
+            logosVerticalWidthRow.style.display = (isVertical && !chromaActive) ? 'flex' : 'none';
+        }
+
+        // Inputs del panel de partidas
+        const partidasPanelHeightInput = document.getElementById('partidasPanelHeight');
+        const partidasPanelHeightLabel = document.getElementById('partidasPanelHeightLabel');
+        const partidasBgColorInput = document.getElementById('partidasBgColor');
+        const partidasBgOpacityInput = document.getElementById('partidasBgOpacity');
+        const partidasBgOpacityLabel = document.getElementById('partidasBgOpacityLabel');
+
+        // Inputs de colores de estado LED
+        const stateColors = [0,1,2,3,4,5].map(i => ({
+            bg:   document.getElementById('stateColor'     + i),
+            text: document.getElementById('stateTextColor' + i)
+        }));
 
         // Elementos de audio
         const chargerSound = document.getElementById('chargerSound');
@@ -620,6 +1251,7 @@
             announce30sec.checked = localStorage.getItem('announce30sec') !== 'false';
             announce10sec.checked = localStorage.getItem('announce10sec') !== 'false';
             showLogos.checked = localStorage.getItem('showLogos') !== 'false';
+            logosMarquee.checked = localStorage.getItem('logosMarquee') !== 'false';
             showBackground.checked = localStorage.getItem('showBackground') !== 'false';
             closeAfter30sec.checked = localStorage.getItem('closeAfter30sec') === 'true';
             
@@ -635,9 +1267,83 @@
             
             // Cargar rutas de imágenes
             backgroundImagePath.value = localStorage.getItem('backgroundImagePath') || 'Fondo_temporada.png';
-            logoLeftPath.value = localStorage.getItem('logoLeftPath') || 'isoy-tr-brgh-768x178.png';
-            logoCenterPath.value = localStorage.getItem('logoCenterPath') || 'first_age_fll_unearthed_white.png';
-            logoRightPath.value = localStorage.getItem('logoRightPath') || 'FIRSTLego-SPAIN-logo-small_white.png';
+
+            // Cargar configuración de franja de logotipos
+            logosBgColorInput.value = localStorage.getItem('logosBgColor') || '#000000';
+            const savedLogoOpacity = parseInt(localStorage.getItem('logosBgOpacity') || '70');
+            logosBgOpacityInput.value = savedLogoOpacity;
+            logosBgOpacityLabel.textContent = savedLogoOpacity + '%';
+            logosStripHeightInput.value = parseInt(localStorage.getItem('logosStripHeight') || '20');
+            logosStripHeightLabel.textContent = logosStripHeightInput.value + '%';
+
+            // Cargar posicionamiento del temporizador
+            const savedTimerPosY = parseInt(localStorage.getItem('timerPositionY') || '50');
+            timerPositionYInput.value = savedTimerPosY;
+            timerPositionYLabel.textContent = savedTimerPosY + '%';
+            const savedTimerPosX = parseInt(localStorage.getItem('timerPositionX') || '50');
+            timerPositionXInput.value = savedTimerPosX;
+            timerPositionXLabel.textContent = savedTimerPosX + '%';
+            const savedTimerWidth = parseInt(localStorage.getItem('timerWidth') || '90');
+            timerWidthInput.value = savedTimerWidth;
+            timerWidthLabel.textContent = savedTimerWidth + '%';
+            timerBgColorInput.value = localStorage.getItem('timerBgColor') || '#000000';
+            const savedTimerBgOp = parseInt(localStorage.getItem('timerBgOpacity') || '0');
+            timerBgOpacityInput.value = savedTimerBgOp;
+            timerBgOpacityLabel.textContent = savedTimerBgOp + '%';
+            const savedTimerBgPad = parseInt(localStorage.getItem('timerBgPadding') || '0');
+            timerBgPaddingInput.value = savedTimerBgPad;
+            timerBgPaddingLabel.textContent = savedTimerBgPad + 'px';
+            timerStrokeColorInput.value = localStorage.getItem('timerStrokeColor') || '#000000';
+            timerStrokeWidthInput.value = parseInt(localStorage.getItem('timerStrokeWidth') || '0');
+            timerStrokeWidthLabel.textContent = (timerStrokeWidthInput.value / 100).toFixed(2) + 'em';
+            textsStrokeColorInput.value = localStorage.getItem('textsStrokeColor') || '#000000';
+            textsStrokeWidthInput.value = parseInt(localStorage.getItem('textsStrokeWidth') || '0');
+            textsStrokeWidthLabel.textContent = (textsStrokeWidthInput.value / 100).toFixed(2) + 'em';
+
+            // Cargar configuración del panel de partidas
+            const savedPartH = parseInt(localStorage.getItem('partidasPanelHeight') || '15');
+            partidasPanelHeightInput.value = savedPartH;
+            partidasPanelHeightLabel.textContent = savedPartH + '%';
+            partidasBgColorInput.value = localStorage.getItem('partidasBgColor') || '#000000';
+            const savedPartOp = parseInt(localStorage.getItem('partidasBgOpacity') || '65');
+            partidasBgOpacityInput.value = savedPartOp;
+            partidasBgOpacityLabel.textContent = savedPartOp + '%';
+
+            // Cargar configuración de chroma
+            chromaShowInput.checked = localStorage.getItem('chromaShow') === 'true';
+            chromaColorInput.value = localStorage.getItem('chromaColor') || '#00ff00';
+            chromaPositionInput.value = localStorage.getItem('chromaPosition') || 'center';
+
+            // Cargar configuración de anuncio de equipo
+            announceTextSizeInput.value = parseInt(localStorage.getItem('announceTextSize') || '10');
+            announceTextSizeLabel.textContent = announceTextSizeInput.value + 'vw';
+            announceTextColorInput.value = localStorage.getItem('announceTextColor') || '#ffffff';
+            announceTextTopInput.value = parseInt(localStorage.getItem('announceTextTop') || '50');
+            announceTextTopLabel.textContent = announceTextTopInput.value + '%';
+            announceTextOffsetXInput.value = parseInt(localStorage.getItem('announceTextOffsetX') || '0');
+            announceTextOffsetXLabel.textContent = announceTextOffsetXInput.value + '%';
+            announceMaxWidthInput.value = parseInt(localStorage.getItem('announceMaxWidth') || '90');
+            announceMaxWidthLabel.textContent = announceMaxWidthInput.value + '%';
+            announceStrokeColorInput.value = localStorage.getItem('announceStrokeColor') || '#000000';
+            announceStrokeWidthInput.value = parseInt(localStorage.getItem('announceStrokeWidth') || '12');
+            announceStrokeWidthLabel.textContent = (announceStrokeWidthInput.value / 100).toFixed(2) + 'em';
+
+            // Cargar orientación de logos
+            logosOrientationInput.value = localStorage.getItem('logosOrientation') || 'horizontal';
+            const savedLogosVertW = parseInt(localStorage.getItem('logosVerticalWidth') || '10');
+            logosVerticalWidthInput.value = savedLogosVertW;
+            logosVerticalWidthLabel.textContent = savedLogosVertW + '%';
+            updateLogosVerticalWidthRowVisibility();
+
+            // Cargar colores de estado LED
+            const defaultBg   = ['#3c3c3c','#e6b400','#dc6400','#0aaa28','#0a50d2','#d21400'];
+            const defaultText = ['#cccccc','#000000','#ffffff','#ffffff','#ffffff','#ffffff'];
+            stateColors.forEach((pair, i) => {
+                pair.bg.value   = localStorage.getItem('stateColor'     + i) || defaultBg[i];
+                pair.text.value = localStorage.getItem('stateTextColor' + i) || defaultText[i];
+            });
+
+            loadLogosArray();
         }
 
         // Guardar configuraciones
@@ -647,6 +1353,7 @@
             localStorage.setItem('announce30sec', announce30sec.checked);
             localStorage.setItem('announce10sec', announce10sec.checked);
             localStorage.setItem('showLogos', showLogos.checked);
+            localStorage.setItem('logosMarquee', logosMarquee.checked);
             localStorage.setItem('showBackground', showBackground.checked);
             localStorage.setItem('closeAfter30sec', closeAfter30sec.checked);
             
@@ -662,9 +1369,53 @@
             
             // Guardar rutas de imágenes
             localStorage.setItem('backgroundImagePath', backgroundImagePath.value);
-            localStorage.setItem('logoLeftPath', logoLeftPath.value);
-            localStorage.setItem('logoCenterPath', logoCenterPath.value);
-            localStorage.setItem('logoRightPath', logoRightPath.value);
+
+            // Guardar configuración de franja de logotipos
+            localStorage.setItem('logosBgColor', logosBgColorInput.value);
+            localStorage.setItem('logosBgOpacity', logosBgOpacityInput.value);
+            localStorage.setItem('logosStripHeight', logosStripHeightInput.value);
+            localStorage.setItem('logosArray', JSON.stringify(logosArray));
+
+            // Guardar posicionamiento del temporizador
+            localStorage.setItem('timerPositionY', timerPositionYInput.value);
+            localStorage.setItem('timerPositionX', timerPositionXInput.value);
+            localStorage.setItem('timerWidth', timerWidthInput.value);
+            localStorage.setItem('timerBgColor', timerBgColorInput.value);
+            localStorage.setItem('timerBgOpacity', timerBgOpacityInput.value);
+            localStorage.setItem('timerBgPadding', timerBgPaddingInput.value);
+            localStorage.setItem('timerStrokeColor', timerStrokeColorInput.value);
+            localStorage.setItem('timerStrokeWidth', timerStrokeWidthInput.value);
+            localStorage.setItem('textsStrokeColor', textsStrokeColorInput.value);
+            localStorage.setItem('textsStrokeWidth', textsStrokeWidthInput.value);
+
+            // Guardar panel de partidas
+            localStorage.setItem('partidasPanelHeight', partidasPanelHeightInput.value);
+            localStorage.setItem('partidasBgColor', partidasBgColorInput.value);
+            localStorage.setItem('partidasBgOpacity', partidasBgOpacityInput.value);
+
+            // Guardar configuración de chroma
+            localStorage.setItem('chromaShow', chromaShowInput.checked);
+            localStorage.setItem('chromaColor', chromaColorInput.value);
+            localStorage.setItem('chromaPosition', chromaPositionInput.value);
+
+            // Guardar configuración de anuncio de equipo
+            localStorage.setItem('announceTextSize', announceTextSizeInput.value);
+            localStorage.setItem('announceTextColor', announceTextColorInput.value);
+            localStorage.setItem('announceTextTop', announceTextTopInput.value);
+            localStorage.setItem('announceTextOffsetX', announceTextOffsetXInput.value);
+            localStorage.setItem('announceMaxWidth', announceMaxWidthInput.value);
+            localStorage.setItem('announceStrokeColor', announceStrokeColorInput.value);
+            localStorage.setItem('announceStrokeWidth', announceStrokeWidthInput.value);
+
+            // Guardar orientación de logos
+            localStorage.setItem('logosOrientation', logosOrientationInput.value);
+            localStorage.setItem('logosVerticalWidth', logosVerticalWidthInput.value);
+
+            // Guardar colores de estado LED
+            stateColors.forEach((pair, i) => {
+                localStorage.setItem('stateColor'     + i, pair.bg.value);
+                localStorage.setItem('stateTextColor' + i, pair.text.value);
+            });
             
             // Cancelar timeout anterior si existe
             if (settingsTimeout) {
@@ -803,6 +1554,7 @@
         announce30sec.addEventListener('change', saveSettings);
         announce10sec.addEventListener('change', saveSettings);
         showLogos.addEventListener('change', saveSettings);
+        logosMarquee.addEventListener('change', saveSettings);
         showBackground.addEventListener('change', saveSettings);
         closeAfter30sec.addEventListener('change', saveSettings);
         
@@ -816,84 +1568,299 @@
         
         // Event listeners para rutas de imágenes
         backgroundImagePath.addEventListener('input', saveSettings);
-        logoLeftPath.addEventListener('input', saveSettings);
-        logoCenterPath.addEventListener('input', saveSettings);
-        logoRightPath.addEventListener('input', saveSettings);
+
+        // Event listeners para franja de logotipos
+        logosBgColorInput.addEventListener('change', saveSettings);
+        logosBgOpacityInput.addEventListener('input', function() {
+            logosBgOpacityLabel.textContent = this.value + '%';
+            saveSettings();
+        });
+        logosStripHeightInput.addEventListener('input', function() {
+            logosStripHeightLabel.textContent = this.value + '%';
+            saveSettings();
+        });
+
+        // Event listeners para posicionamiento del temporizador
+        timerPositionYInput.addEventListener('input', function() {
+            timerPositionYLabel.textContent = this.value + '%';
+            saveSettings();
+        });
+        timerPositionXInput.addEventListener('input', function() {
+            timerPositionXLabel.textContent = this.value + '%';
+            saveSettings();
+        });
+        timerWidthInput.addEventListener('input', function() {
+            timerWidthLabel.textContent = this.value + '%';
+            saveSettings();
+        });
+        timerBgColorInput.addEventListener('change', saveSettings);
+        timerBgOpacityInput.addEventListener('input', function() {
+            timerBgOpacityLabel.textContent = this.value + '%';
+            saveSettings();
+        });
+        timerBgPaddingInput.addEventListener('input', function() {
+            timerBgPaddingLabel.textContent = this.value + 'px';
+            saveSettings();
+        });
+        timerStrokeColorInput.addEventListener('change', saveSettings);
+        timerStrokeWidthInput.addEventListener('input', function() {
+            timerStrokeWidthLabel.textContent = (this.value / 100).toFixed(2) + 'em';
+            saveSettings();
+        });
+        textsStrokeColorInput.addEventListener('change', saveSettings);
+        textsStrokeWidthInput.addEventListener('input', function() {
+            textsStrokeWidthLabel.textContent = (this.value / 100).toFixed(2) + 'em';
+            saveSettings();
+        });
+
+        // Event listeners del panel de partidas
+        partidasPanelHeightInput.addEventListener('input', function() {
+            partidasPanelHeightLabel.textContent = this.value + '%';
+            saveSettings();
+        });
+        partidasBgColorInput.addEventListener('change', saveSettings);
+        partidasBgOpacityInput.addEventListener('input', function() {
+            partidasBgOpacityLabel.textContent = this.value + '%';
+            saveSettings();
+        });
+
+        // Event listeners de chroma
+        chromaShowInput.addEventListener('change', function() {
+            updateLogosVerticalWidthRowVisibility();
+            saveSettings();
+        });
+        chromaColorInput.addEventListener('change', saveSettings);
+        chromaPositionInput.addEventListener('change', saveSettings);
+
+        // Event listeners de anuncio de equipo
+        announceTextSizeInput.addEventListener('input', function() {
+            announceTextSizeLabel.textContent = this.value + 'vw';
+            saveSettings();
+        });
+        announceTextColorInput.addEventListener('change', saveSettings);
+        announceTextTopInput.addEventListener('input', function() {
+            announceTextTopLabel.textContent = this.value + '%';
+            saveSettings();
+        });
+        announceTextOffsetXInput.addEventListener('input', function() {
+            announceTextOffsetXLabel.textContent = this.value + '%';
+            saveSettings();
+        });
+        announceMaxWidthInput.addEventListener('input', function() {
+            announceMaxWidthLabel.textContent = this.value + '%';
+            saveSettings();
+        });
+        announceStrokeColorInput.addEventListener('change', saveSettings);
+        announceStrokeWidthInput.addEventListener('input', function() {
+            announceStrokeWidthLabel.textContent = (this.value / 100).toFixed(2) + 'em';
+            saveSettings();
+        });
+
+        // Event listeners de orientación de logos
+        logosOrientationInput.addEventListener('change', function() {
+            updateLogosVerticalWidthRowVisibility();
+            saveSettings();
+        });
+        logosVerticalWidthInput.addEventListener('input', function() {
+            logosVerticalWidthLabel.textContent = this.value + '%';
+            saveSettings();
+        });
+
+        // Event listeners de colores de estado LED
+        stateColors.forEach(pair => {
+            pair.bg.addEventListener('change', saveSettings);
+            pair.text.addEventListener('change', saveSettings);
+        });
+
+        // Inicializar subsecciones colapsables
+        function initSubsections() {
+            document.querySelectorAll('.subsection-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const content = header.nextElementSibling;
+                    const icon = header.querySelector('.subsection-icon');
+                    if (content) content.classList.toggle('collapsed');
+                    if (icon) icon.classList.toggle('collapsed');
+                });
+            });
+        }
+        initSubsections();
+
+        // ===== Gestión del array de logotipos =====
+        let logosArray = [];
+
+        function loadLogosArray() {
+            try {
+                const stored = localStorage.getItem('logosArray');
+                const parsed = stored ? JSON.parse(stored) : null;
+                logosArray = Array.isArray(parsed) ? parsed : ['isoy-tr-brgh-768x178.png', 'first_age_fll_unearthed_white.png', 'FIRSTLego-SPAIN-logo-small_white.png'];
+            } catch(e) {
+                logosArray = ['isoy-tr-brgh-768x178.png', 'first_age_fll_unearthed_white.png', 'FIRSTLego-SPAIN-logo-small_white.png'];
+            }
+            renderLogosArrayList();
+        }
+
+        function renderLogosArrayList() {
+            const list = document.getElementById('logosArrayList');
+            if (!list) return;
+            if (!logosArray.length) {
+                list.innerHTML = '<div style="font-size:11px;color:#999;padding:4px 0;">Sin logotipos. Pulsa \u201c+ A\u00f1adir\u201d para agregar.</div>';
+                return;
+            }
+            list.innerHTML = logosArray.map((path, idx) => `
+                <div style="display:flex;gap:4px;align-items:center;">
+                    <span style="font-size:11px;color:#888;min-width:18px;text-align:right;">${idx + 1}.</span>
+                    <input type="text" value="${path.replace(/</g, '&lt;').replace(/"/g, '&quot;')}" data-idx="${idx}" class="logo-array-input"
+                        style="flex:1;padding:4px 6px;font-size:12px;border:1px solid #ccc;border-radius:3px;">
+                    <button class="file-select-btn logo-array-file-btn" data-idx="${idx}" style="padding:4px 8px;font-size:11px;">📁</button>
+                    <button class="logo-array-del-btn" data-idx="${idx}"
+                        style="padding:4px 7px;background:#cc3300;color:white;border:none;border-radius:3px;cursor:pointer;font-size:11px;">✕</button>
+                </div>
+            `).join('');
+
+            list.querySelectorAll('.logo-array-input').forEach(inp => {
+                inp.addEventListener('input', e => {
+                    logosArray[+e.target.dataset.idx] = e.target.value;
+                    saveSettings();
+                });
+            });
+            list.querySelectorAll('.logo-array-del-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    logosArray.splice(+btn.dataset.idx, 1);
+                    renderLogosArrayList();
+                    saveSettings();
+                });
+            });
+            list.querySelectorAll('.logo-array-file-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idx = +btn.dataset.idx;
+                    const fi = document.createElement('input');
+                    fi.type = 'file';
+                    fi.accept = 'image/*';
+                    fi.onchange = (fe) => {
+                        const file = fe.target.files[0];
+                        if (file) {
+                            logosArray[idx] = file.name;
+                            renderLogosArrayList();
+                            saveSettings();
+                        }
+                    };
+                    fi.click();
+                });
+            });
+        }
+
+        document.getElementById('btnAddLogo').addEventListener('click', () => {
+            if (logosArray.length < 10) {
+                logosArray.push('');
+                renderLogosArrayList();
+                saveSettings();
+            }
+        });
 
         function updateUI() {
+            const windowOpen = timerWindow && !timerWindow.closed;
+            
             switch(currentState) {
                 case STATES.IDLE:
-                    controlButton.textContent = 'Temporizador';
-                    controlButton.className = '';
+                    startButton.textContent = 'Inicio';
+                    startButton.className = '';
+                    startButton.disabled = true;
+                    startButton.style.opacity = '0.5';
                     statusInfo.textContent = 'Estado: Preparado';
                     statusInfo.style.backgroundColor = '#e8f0ff';
                     break;
                 case STATES.PREPARED:
-                    controlButton.textContent = 'Inicio';
-                    controlButton.className = 'ready';
+                    startButton.textContent = 'Inicio';
+                    startButton.className = '';
+                    // Si hay ESP32 conectado, bloquear hasta que canStart sea true
+                    if (ledWriter) {
+                        const onlineNodes = [...ledNodes.values()].filter(n => n.online);
+                        const hasPreparacion = onlineNodes.some(n => n.state === 1 || n.state === 2);
+                        const anyPartida = onlineNodes.some(n => n.state === 4);
+                        const masterNode = ledSelfId ? onlineNodes.find(n => n.id === ledSelfId) : null;
+                        const masterIsReady = masterNode ? masterNode.state === 3 : false;
+                        const allTeamReady = ledAllTeamNodesReady(onlineNodes);
+                        const canStart = ledIsMaster && !hasPreparacion && allTeamReady && masterIsReady && !anyPartida;
+                        startButton.disabled = !canStart || !windowOpen;
+                        startButton.style.opacity = (canStart && windowOpen) ? '' : '0.5';
+                    } else {
+                        startButton.disabled = !windowOpen;
+                        startButton.style.opacity = windowOpen ? '' : '0.5';
+                    }
                     statusInfo.textContent = 'Estado: Listo para iniciar (2:30)';
                     statusInfo.style.backgroundColor = '#d4edda';
                     break;
                 case STATES.RUNNING:
-                    controlButton.textContent = 'En ejecución...';
-                    controlButton.className = 'running';
+                    startButton.textContent = 'En ejecución...';
+                    startButton.className = 'running';
+                    startButton.disabled = true;
+                    startButton.style.opacity = '';
                     statusInfo.textContent = 'Estado: Temporizador en ejecución';
                     statusInfo.style.backgroundColor = '#fff3cd';
                     break;
             }
         }
 
-        controlButton.addEventListener('click', () => {
-            if (currentState === STATES.IDLE) {
-                // Verificar si la ventana del temporizador está abierta
-                if (!timerWindow || timerWindow.closed) {
-                    // Recuperar posición y tamaño guardados
-                    const savedPosition = getSavedWindowPosition();
-                    
-                    // Abrir la ventana del temporizador sin barra de direcciones
-                    timerWindow = window.open(
-                        './resources/temporizador.html',
-                        'FLL_Timer',
-                        savedPosition
-                    );
-                    // Esperar un poco para que la ventana se cargue
-                    setTimeout(() => {
+        timerButton.addEventListener('click', () => {
+            // Siempre abre o trae al frente la ventana del temporizador
+            if (!timerWindow || timerWindow.closed) {
+                const savedPosition = getSavedWindowPosition();
+                timerWindow = window.open(
+                    './resources/temporizador.html',
+                    'FLL_Timer',
+                    savedPosition
+                );
+                setTimeout(() => {
+                    if (currentState === STATES.IDLE) {
                         currentState = STATES.PREPARED;
-                        updateUI();
-                        channel.postMessage({ type: 'prepare-timer' });
-                        timerWindow.focus();
-                    }, 500);
-                } else {
-                    // La ventana ya está abierta
-                    timerWindow.focus();
+                    }
+                    updateUI();
+                    channel.postMessage({ type: 'prepare-timer' });
+                    if (timerWindow && !timerWindow.closed) timerWindow.focus();
+                }, 500);
+            } else {
+                timerWindow.focus();
+                if (currentState === STATES.IDLE) {
                     currentState = STATES.PREPARED;
                     updateUI();
                     channel.postMessage({ type: 'prepare-timer' });
                 }
-            } else if (currentState === STATES.PREPARED) {
-                // Verificar que la ventana del temporizador sigue abierta
-                if (!timerWindow || timerWindow.closed) {
-                    // La ventana se cerró, volver a estado IDLE
-                    currentState = STATES.IDLE;
-                    updateUI();
-                    timerWindow = null;
-                    statusInfo.textContent = '⚠️ La ventana del temporizador se cerró. Pulsa "Temporizador" para abrir de nuevo.';
-                    statusInfo.style.backgroundColor = '#f8d7da';
-                    return;
-                }
-                
-                // Iniciar timer
-                currentState = STATES.RUNNING;
-                updateUI();
-                channel.postMessage({ type: 'start-timer' });
-                
-                // Traer la ventana del temporizador al frente
-                if (timerWindow && !timerWindow.closed) {
-                    timerWindow.focus();
-                }
             }
-            // Si está running, no hacer nada
         });
+
+        startButton.addEventListener('click', () => {
+            if (currentState !== STATES.PREPARED) return;
+            // Verificar que la ventana del temporizador sigue abierta
+            if (!timerWindow || timerWindow.closed) {
+                timerWindow = null;
+                updateUI();
+                statusInfo.textContent = '⚠️ La ventana del temporizador se cerró. Pulsa "Temporizador" para abrir de nuevo.';
+                statusInfo.style.backgroundColor = '#f8d7da';
+                return;
+            }
+            // Iniciar timer
+            currentState = STATES.RUNNING;
+            updateUI();
+            channel.postMessage({ type: 'start-timer' });
+            ledSendJson({ cmd: 'set_all', state: 4 });
+            timerWindow.focus();
+        });
+
+        // Arranca la partida desde cualquier ruta (botón web o pulsador ESP32)
+        function triggerStart() {
+            if (currentState !== STATES.PREPARED) return;
+            if (!timerWindow || timerWindow.closed) {
+                currentState = STATES.IDLE;
+                updateUI();
+                timerWindow = null;
+                return;
+            }
+            currentState = STATES.RUNNING;
+            updateUI();
+            channel.postMessage({ type: 'start-timer' });
+            ledSendJson({ cmd: 'set_all', state: 4 });
+            if (timerWindow && !timerWindow.closed) timerWindow.focus();
+        }
 
         // Toggle panel de configuraciones
         settingsHeader.addEventListener('click', () => {
@@ -901,11 +1868,29 @@
             collapseIcon.classList.toggle('collapsed');
         });
 
+        // Toggle panel de partidas
+        document.getElementById('partidasHeader').addEventListener('click', () => {
+            document.getElementById('partidasContent').classList.toggle('collapsed');
+            document.getElementById('partidasCollapseIcon').classList.toggle('collapsed');
+        });
+
+        // Toggle panel de leds
+        document.getElementById('ledsHeader').addEventListener('click', () => {
+            document.getElementById('ledsContent').classList.toggle('collapsed');
+            document.getElementById('ledsCollapseIcon').classList.toggle('collapsed');
+        });
+
         openTimerButton.addEventListener('click', () => {
             // Reiniciar el temporizador
-            currentState = STATES.IDLE;
-            updateUI();
             channel.postMessage({ type: 'reset-timer' });
+
+            // Limpiar anuncio de equipo
+            announceActiveTeam = null;
+            if (typeof window.renderTeamPanel === 'function') window.renderTeamPanel();
+
+            // Poner en REPOSO los ESP32 que estén en PARTIDA
+            const enPartida = [...ledNodes.values()].some(n => n.state === 4);
+            if (enPartida) ledSendJson({ cmd: 'set_all', state: 0 });
             
             // Abrir ventana del temporizador
             if (!timerWindow || timerWindow.closed) {
@@ -914,23 +1899,25 @@
                 
                 // Abrir la ventana del temporizador sin barra de direcciones
                 timerWindow = window.open(
-                    'temporizador.html',
+                    './resources/temporizador.html',
                     'FLL_Timer',
                     savedPosition
                 );
                 
-                // Actualizar estado
+                // Con ventana nueva → esperar carga y pasar a PREPARADO
+                currentState = STATES.IDLE;
+                updateUI();
                 statusInfo.textContent = '🖥️ Abriendo ventana del temporizador...';
                 setTimeout(() => {
-                    statusInfo.textContent = 'ℹ️ Haz click en la ventana del temporizador para continuar';
-                }, 500);
-            } else {
-                // La ventana ya está abierta
-                timerWindow.focus();
-                statusInfo.textContent = '🔄 Ventana del temporizador reiniciada';
-                setTimeout(() => {
+                    currentState = STATES.PREPARED;
                     updateUI();
-                }, 2000);
+                }, 600);
+            } else {
+                // La ventana ya está abierta → quedarse en PREPARADO directamente
+                timerWindow.focus();
+                currentState = STATES.PREPARED;
+                updateUI();
+                statusInfo.textContent = '🔄 Ventana del temporizador reiniciada';
             }
         });
 
@@ -942,6 +1929,10 @@
             } else if (event.data.type === 'timer-started') {
                 // El temporizador se ha iniciado (desde el botón o desde los logos)
                 currentState = STATES.RUNNING;
+                if (announceActiveTeam) {
+                    announceActiveTeam = null;
+                    if (typeof window.renderTeamPanel === 'function') window.renderTeamPanel();
+                }
                 updateUI();
             } else if (event.data.type === 'timer-tick') {
                 // Actualizar el status con el tiempo restante
@@ -949,16 +1940,30 @@
                     statusInfo.textContent = `⏱️ Tiempo: ${formatTime(event.data.timeRemaining)}`;
                 }
             } else if (event.data.type === 'timer-reset') {
-                currentState = STATES.IDLE;
-                updateUI();
-                // Cerrar la ventana del timer
+                // Volver el botón Timekeeper a apariencia REPOSO
+                timekeeperIsReady = false;
+                btnTimekeeperReady.classList.remove('tk-ready');
+                btnTimekeeperReady.style.backgroundColor = '#777';
+                btnTimekeeperReady.style.boxShadow = 'none';
+                btnTimekeeperReady.textContent = 'TIMEKEEPER REPOSO';
+                try {
+                    if (typeof window.advancePartida === 'function') window.advancePartida();
+                } catch(e) {}
+                // Cerrar la ventana del timer si la opción está activada
                 if (timerWindow && !timerWindow.closed) {
-                    // Cerrar la ventana solo si la opción está activada
                     if (closeAfter30sec.checked) {
-                      timerWindow.close();
-                      timerWindow = null;
+                        timerWindow.close();
+                        timerWindow = null;
                     }
                 }
+                // Si la ventana sigue abierta, ir a PREPARADO directamente
+                // (no es necesario volver a pulsar "Temporizador")
+                if (timerWindow && !timerWindow.closed) {
+                    currentState = STATES.PREPARED;
+                } else {
+                    currentState = STATES.IDLE;
+                }
+                updateUI();
             } else if (event.data.type === 'play-sound') {
                 // Reproducir el sonido solicitado
                 playSound(event.data.sound);
@@ -986,6 +1991,12 @@
                     statusInfo.style.fontWeight = 'normal';
                     statusTimeout = null;
                 }, 3000);
+            } else if (event.data.type === 'led-start') {
+                // El temporizador arrancó desde los logos con ESP32 conectado → enviar PARTIDA
+                ledSendJson({ cmd: 'set_all', state: 4 });
+            } else if (event.data.type === 'timer-ended') {
+                // Enviar FIN a los ESP32 si están conectados
+                ledSendJson({ cmd: 'set_all', state: 5 });
             } else if (event.data.type === 'position-saved') {
                 // La ventana del temporizador confirmó que se guardó la posición
                 updatePositionButtonText();
@@ -1009,6 +2020,476 @@
         updateUI();
         updatePositionButtonText();
 
+        // ===== Partidas =====
+        (function() {
+            const MAX_MESAS = 8;
+            let partidasData = [];
+            let mesaHeaders = [];
+
+            function savePartidas() {
+                try { localStorage.setItem('partidasData', JSON.stringify(partidasData)); } catch(e) {}
+                try { localStorage.setItem('mesaHeaders', JSON.stringify(mesaHeaders)); } catch(e) {}
+            }
+
+            function loadPartidas() {
+                try { partidasData = JSON.parse(localStorage.getItem('partidasData') || '[]'); } catch(e) { partidasData = []; }
+                try { mesaHeaders = JSON.parse(localStorage.getItem('mesaHeaders') || '[]'); } catch(e) { mesaHeaders = []; }
+                if (partidasData.length) renderPartidas();
+                renderTeamPanel();
+            }
+
+            // ==== Panel de equipos ====
+            // Event delegation: un solo handler estable en el panel
+            const _teamPanel = document.getElementById('partidasTeamPanel');
+            if (_teamPanel) {
+                _teamPanel.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.team-announce-btn');
+                    if (!btn) return;
+                    if (currentState === STATES.RUNNING) return;
+                    const team = btn.dataset.team;
+                    const mesa = btn.dataset.mesa;
+                    if (announceActiveTeam === team) {
+                        announceActiveTeam = null;
+                        channel.postMessage({ type: 'team-announce-clear' });
+                    } else {
+                        announceActiveTeam = team;
+                        channel.postMessage({ type: 'team-announce', teamName: team, mesaName: mesa });
+                    }
+                    renderTeamPanel();
+                });
+            }
+
+            let _teamPanelSnapshot = '';
+            let _teamPanelDebounceTimer = null;
+
+            function renderTeamPanel(debounce) {
+                if (debounce) {
+                    if (_teamPanelDebounceTimer) return;
+                    _teamPanelDebounceTimer = setTimeout(() => {
+                        _teamPanelDebounceTimer = null;
+                        renderTeamPanel(false);
+                    }, 300);
+                    return;
+                }
+                const panel = document.getElementById('partidasTeamPanel');
+                if (!panel) return;
+
+                const activePartida = partidasData.find(p => p.activa) || null;
+
+                if (!mesaHeaders.length || !partidasData.length) {
+                    panel.style.display = 'none';
+                    _teamPanelSnapshot = '';
+                    return;
+                }
+
+                // Leer estado de LEDs si están disponibles (ledNodes puede no estar en TDZ)
+                const nodeConfig = (() => { try { return JSON.parse(localStorage.getItem('esp32NodeConfig') || '[]'); } catch { return []; } })();
+                const ledNodesMap = (() => { try { return ledNodes || null; } catch { return null; } })();
+
+                // Colores por estado (mismo esquema que temporizador)
+                const STATE_COLORS = {
+                    0: '#e0e0e0', // REPOSO → gris claro
+                    1: '#ffb300', // PREPARACION → naranja
+                    2: '#ff8800', // MUST_GO → naranja fuerte
+                    3: '#007a3d', // READY → verde (igual que botón TK)
+                    4: '#3b82f6', // PARTIDA → azul
+                    5: '#ef4444', // FINAL → rojo
+                };
+                const STATE_TEXT_COLORS = { 0: '#222', 1:'#fff', 2:'#fff', 3:'#fff', 4:'#fff', 5:'#fff' };
+                const STATE_NAMES = { 0:'Reposo', 1:'Preparación', 2:'¡Ahora!', 3:'Listo', 4:'En partida', 5:'Final' };
+
+                let html = `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 0;">`;
+
+                for (let i = 0; i < mesaHeaders.length; i++) {
+                    const headerName = mesaHeaders[i];
+                    const teamName = activePartida ? (activePartida.mesas[i] || '').trim() : '';
+                    if (!teamName) continue; // mesa sin equipo → no mostrar
+
+                    // Buscar el nodo LED que se llama como esta cabecera
+                    let nodeState = null;
+                    if (ledNodesMap) {
+                        const cfg = nodeConfig.find(c => {
+                            const displayName = c.name ? c.name : c.id;
+                            return displayName.trim().toLowerCase() === headerName.trim().toLowerCase();
+                        });
+                        if (cfg) {
+                            const node = ledNodesMap.get(cfg.id);
+                            if (node && node.online) nodeState = node.state;
+                        }
+                    }
+
+                    const bg = nodeState !== null ? STATE_COLORS[nodeState] ?? '#e0e0e0' : '#e0e0e0';
+                    const fg = nodeState !== null ? STATE_TEXT_COLORS[nodeState] ?? '#222' : '#222';
+                    const stateLabel = nodeState !== null ? (STATE_NAMES[nodeState] || '') : '';
+
+                    const isAnnounced = announceActiveTeam === teamName;
+                    html += `<div class="team-announce-btn" data-team="${teamName.replace(/"/g, '&quot;')}" data-mesa="${headerName.replace(/"/g, '&quot;')}" style="
+                        flex:1;
+                        min-width:0;
+                        background:${bg};
+                        color:${fg};
+                        border-radius:8px;
+                        padding:0.35em 0.7em;
+                        text-align:center;
+                        border:${isAnnounced ? '3px solid #ffff00' : '1px solid #ccc'};
+                        transition: background 0.3s;
+                        cursor:pointer;
+                    ">
+                        <div style="font-size:10px;color:${nodeState===0?'#666':fg};opacity:0.8;">${headerName}</div>
+                        <div style="font-size:13px;font-weight:bold;line-height:1.2;">${teamName}</div>
+                        ${stateLabel ? `<div style="font-size:9px;opacity:0.85;margin-top:2px;">${stateLabel}</div>` : ''}
+                    </div>`;
+                }
+
+                html += `</div>`;
+                // Solo actualizar DOM si algo cambió
+                if (html !== _teamPanelSnapshot) {
+                    _teamPanelSnapshot = html;
+                    panel.innerHTML = html;
+                }
+                panel.style.display = '';
+            }
+
+            window.renderTeamPanel = renderTeamPanel;
+
+            function renderPartidas() {
+                const thead = document.getElementById('partidasTableHead');
+                const tbody = document.getElementById('partidasTableBody');
+                if (!thead || !tbody) return;
+
+                // Cabecera
+                let headHtml = '<tr><th>✔</th><th>Ronda</th><th>Hora</th>';
+                for (let i = 0; i < mesaHeaders.length; i++) headHtml += `<th>${mesaHeaders[i]}</th>`;
+                headHtml += '<th></th></tr>';
+                thead.innerHTML = headHtml;
+
+                // Filas
+                tbody.innerHTML = '';
+                partidasData.forEach((p, idx) => {
+                    const tr = document.createElement('tr');
+                    if (p.activa) tr.classList.add('partida-activa');
+
+                    // Radio
+                    const tdRadio = document.createElement('td');
+                    tdRadio.style.textAlign = 'center';
+                    const radio = document.createElement('input');
+                    radio.type = 'radio';
+                    radio.name = 'partidaActiva';
+                    radio.checked = !!p.activa;
+                    radio.addEventListener('change', () => {
+                        partidasData.forEach((pp, ii) => pp.activa = (ii === idx));
+                        savePartidas();
+                        renderPartidas();
+                        renderTeamPanel();
+                    });
+                    tdRadio.appendChild(radio);
+                    tr.appendChild(tdRadio);
+
+                    // Ronda (editable)
+                    const tdRonda = document.createElement('td');
+                    tdRonda.style.textAlign = 'center';
+                    const inpRonda = document.createElement('input');
+                    inpRonda.type = 'text';
+                    inpRonda.value = p.ronda;
+                    inpRonda.addEventListener('input', e => { partidasData[idx].ronda = e.target.value; savePartidas(); });
+                    tdRonda.appendChild(inpRonda);
+                    tr.appendChild(tdRonda);
+
+                    // Hora prevista (editable)
+                    const tdHora = document.createElement('td');
+                    tdHora.style.textAlign = 'center';
+                    const inpHora = document.createElement('input');
+                    inpHora.type = 'time';
+                    inpHora.value = p.hora || '';
+                    inpHora.style.cssText = 'width:90px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;font-size:13px;';
+                    inpHora.addEventListener('input', e => { partidasData[idx].hora = e.target.value; savePartidas(); });
+                    tdHora.appendChild(inpHora);
+                    tr.appendChild(tdHora);
+
+                    // Mesas (editables)
+                    for (let m = 0; m < mesaHeaders.length; m++) {
+                        const td = document.createElement('td');
+                        const inp = document.createElement('input');
+                        inp.type = 'text';
+                        inp.value = p.mesas[m] || '';
+                        inp.dataset.idx = idx;
+                        inp.dataset.mesa = m;
+                        inp.addEventListener('input', (e) => {
+                            partidasData[+e.target.dataset.idx].mesas[+e.target.dataset.mesa] = e.target.value;
+                            savePartidas();
+                            renderTeamPanel();
+                        });
+                        td.appendChild(inp);
+                        tr.appendChild(td);
+                    }
+
+                    // Botón borrar fila
+                    const tdDel = document.createElement('td');
+                    tdDel.style.textAlign = 'center';
+                    const btnDel = document.createElement('button');
+                    btnDel.textContent = '✕';
+                    btnDel.title = 'Borrar fila';
+                    btnDel.style.cssText = 'padding:2px 6px;background:#cc3300;color:white;border:none;border-radius:3px;cursor:pointer;font-size:11px;';
+                    btnDel.addEventListener('click', () => {
+                        const wasActive = partidasData[idx].activa;
+                        partidasData.splice(idx, 1);
+                        if (wasActive && partidasData.length) partidasData[0].activa = true;
+                        savePartidas();
+                        renderPartidas();
+                        renderTeamPanel();
+                    });
+                    tdDel.appendChild(btnDel);
+                    tr.appendChild(tdDel);
+
+                    tbody.appendChild(tr);
+                });
+
+                renderTeamPanel();
+            }
+
+            // Botón borrar toda la tabla
+            document.getElementById('btnClearPartidas').addEventListener('click', () => {
+                if (!confirm('¿Borrar toda la tabla de partidas?')) return;
+                partidasData = [];
+                mesaHeaders = [];
+                savePartidas();
+                renderPartidas();
+                renderTeamPanel();
+                document.getElementById('partidasFileName').textContent = '';
+            });
+
+            // Botón añadir fila manual
+            document.getElementById('btnAddPartida').addEventListener('click', () => {
+                if (!mesaHeaders.length) {
+                    // Si no hay cabeceras, pedir nombre de una mesa para crear estructura mínima
+                    const h = prompt('Nombre de la mesa (p.ej. "Mesa 1"):');
+                    if (!h || !h.trim()) return;
+                    mesaHeaders = [h.trim()];
+                }
+                partidasData.push({ ronda: '', hora: '', mesas: mesaHeaders.map(() => ''), activa: !partidasData.length });
+                savePartidas();
+                renderPartidas();
+            });
+
+            document.getElementById('btnLoadExcel').addEventListener('click', () => {
+                document.getElementById('excelFileInput').click();
+            });
+
+            document.getElementById('excelFileInput').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                document.getElementById('partidasFileName').textContent = file.name;
+                e.target.value = '';
+
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try {
+                        const wb = XLSX.read(ev.target.result, { type: 'array' });
+                        const ws = wb.Sheets[wb.SheetNames[0]];
+                        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+
+                        if (!rows || rows.length < 2) {
+                            alert('El archivo no contiene datos suficientes.');
+                            return;
+                        }
+
+                        const header = rows[0].map(c => String(c).trim());
+                        const idxRonda   = header.findIndex(h => /ronda/i.test(h));
+                        const idxHora    = header.findIndex(h => /hora/i.test(h));
+
+                        const mesaCols = [];
+                        for (let c = 0; c < header.length && mesaCols.length < MAX_MESAS; c++) {
+                            if (/mesa/i.test(header[c]) && c !== idxHora) mesaCols.push(c);
+                        }
+
+                        if (idxRonda < 0 || mesaCols.length === 0) {
+                            alert('No se encontraron columnas Ronda y al menos una Mesa.');
+                            return;
+                        }
+
+                        mesaHeaders = mesaCols.map(c => header[c]);
+                        partidasData = [];
+
+                        for (let r = 1; r < rows.length; r++) {
+                            const row = rows[r];
+                            const ronda = String(row[idxRonda] || '').trim();
+                            if (!ronda) continue;
+                            let hora = idxHora >= 0 ? String(row[idxHora] || '').trim() : '';
+                            // Normalizar hora a formato HH:MM para input type="time"
+                            if (hora) {
+                                const m = hora.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?/i);
+                                if (m) {
+                                    let h = parseInt(m[1], 10);
+                                    const min = m[2];
+                                    const ampm = (m[3] || '').toUpperCase();
+                                    if (ampm === 'PM' && h < 12) h += 12;
+                                    if (ampm === 'AM' && h === 12) h = 0;
+                                    hora = String(h).padStart(2, '0') + ':' + min;
+                                } else {
+                                    hora = '';
+                                }
+                            }
+                            const mesas = mesaCols.map(c => String(row[c] || '').trim());
+                            partidasData.push({ ronda, hora, mesas, activa: false });
+                        }
+
+                        if (partidasData.length) partidasData[0].activa = true;
+                        savePartidas();
+                        renderPartidas();
+                    } catch(err) {
+                        alert('Error leyendo el archivo: ' + err.message);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            });
+
+            loadPartidas();
+            window.renderPartidas = renderPartidas;
+            window.advancePartida = function() {
+                const activeIdx = partidasData.findIndex(p => p.activa);
+                if (activeIdx >= 0 && activeIdx < partidasData.length - 1) {
+                    partidasData[activeIdx].activa = false;
+                    partidasData[activeIdx + 1].activa = true;
+                    savePartidas();
+                    renderPartidas();
+                    renderTeamPanel();
+                }
+            };
+        })();
+
+        // ===== Configuración de nombres/orden de ESP32 =====
+        function loadEsp32Config() {
+            try { return JSON.parse(localStorage.getItem('esp32NodeConfig') || '[]'); } catch { return []; }
+        }
+
+        function saveEsp32Config(config) {
+            localStorage.setItem('esp32NodeConfig', JSON.stringify(config));
+        }
+
+        function mergeEsp32Ids(ids) {
+            let config = loadEsp32Config();
+            let changed = false;
+            for (const id of ids) {
+                if (!config.find(c => c.id === id)) {
+                    config.push({ id, name: '', order: config.length + 1 });
+                    changed = true;
+                }
+            }
+            if (changed) {
+                saveEsp32Config(config);
+                renderEsp32ConfigTable();
+            }
+        }
+
+        function renderEsp32ConfigTable() {
+            const tbody = document.getElementById('esp32ConfigBody');
+            if (!tbody) return;
+            const config = loadEsp32Config();
+            tbody.innerHTML = config.map(c => `
+                <tr>
+                    <td style="font-family:monospace;font-size:11px;padding:4px 6px;border:1px solid #eee;white-space:nowrap;">${c.id}</td>
+                    <td style="border:1px solid #eee;padding:2px 4px;"><input type="text" class="esp32-name-input" data-id="${c.id}" value="${c.name}" placeholder="Nombre…" style="width:100%;padding:3px 5px;border:1px solid #ccc;border-radius:3px;font-size:12px;"></td>
+                    <td style="border:1px solid #eee;padding:2px 4px;text-align:center;"><input type="number" class="esp32-order-input" data-id="${c.id}" value="${c.order}" min="1" style="width:48px;padding:3px;border:1px solid #ccc;border-radius:3px;font-size:12px;text-align:center;"></td>
+                    <td style="border:1px solid #eee;padding:2px 4px;text-align:center;"><button class="esp32-toggle-btn" data-id="${c.id}" style="padding:2px 8px;border:none;border-radius:3px;cursor:pointer;font-size:11px;color:white;background:#bbb;" disabled>—</button></td>
+                    <td style="border:1px solid #eee;padding:2px 4px;text-align:center;"><button class="esp32-del-btn" data-id="${c.id}" style="padding:2px 7px;background:#cc3300;color:white;border:none;border-radius:3px;cursor:pointer;font-size:11px;">✕</button></td>
+                </tr>
+            `).join('');
+
+            tbody.querySelectorAll('.esp32-name-input').forEach(inp => {
+                inp.addEventListener('input', () => {
+                    const cfg = loadEsp32Config();
+                    const entry = cfg.find(c => c.id === inp.dataset.id);
+                    if (entry) { entry.name = inp.value; saveEsp32Config(cfg); }
+                });
+            });
+            tbody.querySelectorAll('.esp32-order-input').forEach(inp => {
+                inp.addEventListener('input', () => {
+                    const cfg = loadEsp32Config();
+                    const entry = cfg.find(c => c.id === inp.dataset.id);
+                    if (entry) { entry.order = parseInt(inp.value) || 1; saveEsp32Config(cfg); }
+                });
+            });
+            tbody.querySelectorAll('.esp32-toggle-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.dataset.id;
+                    const node = ledNodes.get(id);
+                    if (!node || !node.online || !ledWriter || !ledIsMaster) {
+                        console.warn('set_node bloqueado:', { id, node, ledWriter: !!ledWriter, ledIsMaster });
+                        return;
+                    }
+                    const targetState = node.state === 3 ? 0 : 3;
+                    const origText = btn.textContent;
+                    btn.textContent = '⏳';
+                    btn.disabled = true;
+                    if (id === ledSelfId) {
+                        // set_self para el maestro
+                        await ledSendJson({ cmd: 'set_self', state: targetState });
+                    } else {
+                        // set_node + triple envío para superar pérdidas de radio
+                        const cmd = { cmd: 'set_node', id: id, state: targetState };
+                        await ledSendJson(cmd);
+                        setTimeout(() => ledSendJson(cmd), 200);
+                        setTimeout(() => ledSendJson(cmd), 500);
+                        // Pedir estado actualizado tras dar tiempo al nodo remoto
+                        setTimeout(() => ledSendJson({ cmd: 'get_status' }), 700);
+                    }
+                    // Restaurar botón tras breve feedback visual
+                    setTimeout(() => {
+                        btn.textContent = origText;
+                        btn.disabled = false;
+                        updateEsp32ConfigButtons();
+                    }, 900);
+                });
+            });
+            tbody.querySelectorAll('.esp32-del-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    saveEsp32Config(loadEsp32Config().filter(c => c.id !== btn.dataset.id));
+                    renderEsp32ConfigTable();
+                });
+            });
+            updateEsp32ConfigButtons();
+        }
+
+        document.getElementById('addEsp32Row').addEventListener('click', () => {
+            const id = prompt('ID del ESP32 (formato hexadecimal, p.ej. 1A2B3C4D):');
+            if (!id || !id.trim()) return;
+            const cfg = loadEsp32Config();
+            if (!cfg.find(c => c.id === id.trim().toUpperCase())) {
+                cfg.push({ id: id.trim().toUpperCase(), name: '', order: cfg.length + 1 });
+                saveEsp32Config(cfg);
+                renderEsp32ConfigTable();
+            }
+        });
+
+        // renderEsp32ConfigTable() se llama más abajo, después de declarar ledNodes
+
+        function updateEsp32ConfigButtons() {
+            if (!ledNodes) return;
+            document.querySelectorAll('.esp32-toggle-btn').forEach(btn => {
+                const id = btn.dataset.id;
+                const node = ledNodes.get(id);
+                const canAct = !!ledWriter;
+                if (!node || !node.online) {
+                    btn.textContent = '—';
+                    btn.disabled = true;
+                    btn.style.background = '#bbb';
+                } else if (node.state === 0 || node.state === 1 || node.state === 2) {
+                    btn.textContent = '→ READY';
+                    btn.disabled = !canAct;
+                    btn.style.background = canAct ? '#22882a' : '#aaa';
+                } else if (node.state === 3) {
+                    btn.textContent = '→ REPOSO';
+                    btn.disabled = !canAct;
+                    btn.style.background = canAct ? '#cc5500' : '#aaa';
+                } else {
+                    btn.textContent = '…';
+                    btn.disabled = true;
+                    btn.style.background = '#888';
+                }
+                btn.style.color = 'white';
+            });
+        }
+
         // Verificar si la ventana del timer está abierta
         setInterval(() => {
             if (timerWindow && timerWindow.closed) {
@@ -1020,6 +2501,281 @@
                 }
             }
         }, 1000);
+
+        // ===== Control LED ESP32 =====
+        let ledPort = null;
+        let ledReader = null;
+        let ledWriter = null;
+        let ledReadBuffer = "";
+        let ledNodes = new Map();
+        let ledClaimTimer = null;
+        let ledRefreshTimer = null;
+        let ledIsMaster = false;
+        let ledSelfId = null;
+        let timekeeperIsReady = false;
+        let lastSentCanStart = null; // para enviar set_can_start solo cuando cambia
+
+        renderEsp32ConfigTable();
+
+        const btnConnect = document.getElementById("btnConnect");
+        const btnReset = document.getElementById("btnReset");
+        const btnTimekeeperReady = document.getElementById("btnTimekeeperReady");
+        const ledStatusBar = document.getElementById("ledStatusBar");
+        const ledControls = document.getElementById("ledControls");
+
+        function ledFmtId(v) {
+            return String(Number(v).toString(16).toUpperCase().padStart(8, "0"));
+        }
+
+        // Devuelve true si todos los nodos con equipo asignado están en READY
+        function ledAllTeamNodesReady(onlineNodes) {
+            try {
+                const mesaHeaders = JSON.parse(localStorage.getItem('mesaHeaders') || '[]');
+                const partidasData = JSON.parse(localStorage.getItem('partidasData') || '[]');
+                const activePartida = partidasData.find(p => p.activa) || null;
+                const nodeConfig = JSON.parse(localStorage.getItem('esp32NodeConfig') || '[]');
+                if (!activePartida || !mesaHeaders.length) {
+                    // Sin partidas: al menos un nodo en READY (conducta anterior)
+                    return onlineNodes.some(n => n.state === 3);
+                }
+                // Con partidas: todos los nodos con equipo asignado (excluido el master) deben estar en READY
+                const teamNodes = onlineNodes.filter(n => {
+                    if (n.id === ledSelfId) return false; // master se comprueba por separado
+                    const cfg = nodeConfig.find(c => c.id === n.id);
+                    const displayName = (cfg && cfg.name) ? cfg.name : n.id;
+                    const idx = mesaHeaders.findIndex(h =>
+                        h.trim().toLowerCase() === displayName.trim().toLowerCase()
+                    );
+                    if (idx < 0) return false;
+                    return !!(activePartida.mesas[idx] || '').trim();
+                });
+                if (teamNodes.length === 0) return true; // ningún nodo con equipo online → solo depende del master
+                return teamNodes.every(n => n.state === 3);
+            } catch {
+                return onlineNodes.some(n => n.state === 3);
+            }
+        }
+
+        // Filtra nodos cuya mesa en la partida activa está en blanco (sin equipo)
+        function ledGetRelevantNodes(onlineNodes) {
+            try {
+                const mesaHeaders = JSON.parse(localStorage.getItem('mesaHeaders') || '[]');
+                const partidasData = JSON.parse(localStorage.getItem('partidasData') || '[]');
+                const activePartida = partidasData.find(p => p.activa) || null;
+                const nodeConfig = JSON.parse(localStorage.getItem('esp32NodeConfig') || '[]');
+                if (!activePartida || !mesaHeaders.length) return onlineNodes;
+                return onlineNodes.filter(n => {
+                    if (n.id === ledSelfId) return true; // maestro siempre se tiene en cuenta
+                    const cfg = nodeConfig.find(c => c.id === n.id);
+                    const displayName = (cfg && cfg.name) ? cfg.name : n.id;
+                    const idx = mesaHeaders.findIndex(h =>
+                        h.trim().toLowerCase() === displayName.trim().toLowerCase()
+                    );
+                    if (idx < 0) return true; // no está en la tabla de mesas → contar normalmente
+                    return !!(activePartida.mesas[idx] || '').trim(); // excluir si la mesa está vacía
+                });
+            } catch {
+                return onlineNodes;
+            }
+        }
+
+        function ledUpdateAvailability() {
+            const onlineNodes = [...ledNodes.values()].filter(n => n.online);
+            const hasPreparacion = onlineNodes.some(n => n.state === 1 || n.state === 2);
+            const anyPartida = onlineNodes.some(n => n.state === 4);
+            const masterNode = ledSelfId ? onlineNodes.find(n => n.id === ledSelfId) : null;
+            const masterIsReady = masterNode ? masterNode.state === 3 : false;
+            const allTeamReady = ledAllTeamNodesReady(onlineNodes);
+            const canStart = ledIsMaster && !hasPreparacion && allTeamReady && masterIsReady && !anyPartida;
+
+            btnReset.disabled = !ledWriter || !ledIsMaster;
+            btnTimekeeperReady.disabled = !ledWriter || !ledIsMaster;
+
+            // Apariencia del botón Timekeeper según estado real del LED maestro
+            const LED_BTN_NAMES = {0:'REPOSO',1:'PREPARACION',2:'PREPARANDO',3:'READY',4:'PARTIDA',5:'FINAL'};
+            const TK_STATE_COLORS = {0:'#777',1:'#ffb300',2:'#ff8800',3:'#007a3d',4:'#3b82f6',5:'#ef4444'};
+            const masterState = masterNode ? masterNode.state : 0;
+            const masterStateName = LED_BTN_NAMES[masterState] || 'REPOSO';
+            timekeeperIsReady = masterIsReady;
+            btnTimekeeperReady.classList.remove('tk-ready');
+            btnTimekeeperReady.style.backgroundColor = TK_STATE_COLORS[masterState] ?? '#777';
+            btnTimekeeperReady.style.boxShadow = masterState !== 0 ? '' : 'none';
+            btnTimekeeperReady.textContent = `TIMEKEEPER ${masterStateName}`;
+
+            let statusMsg;
+            if (canStart) {
+                statusMsg = 'Puede iniciar: sí';
+            } else {
+                const motivos = [];
+                if (!ledIsMaster)       motivos.push('no es maestro');
+                if (!masterIsReady)     motivos.push('timekeeper no está READY');
+                if (!allTeamReady)      motivos.push('hay leds con equipo sin READY');
+                if (hasPreparacion)     motivos.push('hay leds en PREPARACION/MUST_GO');
+                if (anyPartida)         motivos.push('partida en curso');
+                statusMsg = 'Puede iniciar: no — ' + (motivos.join(', ') || 'condiciones no cumplidas');
+            }
+
+            ledStatusBar.textContent =
+                `Conectado | Maestro: ${ledIsMaster ? "sí" : "no"} | ` +
+                `Online: ${onlineNodes.length} | ${statusMsg}`;
+
+            // Refrescar el botón Inicio si estamos en estado PREPARED
+            if (currentState === STATES.PREPARED) updateUI();
+
+            // Registrar IDs descubiertos en config
+            mergeEsp32Ids([...ledNodes.keys()]);
+            updateEsp32ConfigButtons();
+            if (typeof window.renderTeamPanel === 'function') window.renderTeamPanel(true);
+
+            // Enviar bandera canStart al firmware si ha cambiado
+            if (canStart !== lastSentCanStart) {
+                lastSentCanStart = canStart;
+                ledSendJson({ cmd: 'set_can_start', value: canStart ? 1 : 0 });
+            }
+
+            // Enviar estados al temporizador
+            channel.postMessage({
+                type: 'led-status',
+                nodes: [...ledNodes.values()],
+                selfId: ledSelfId,
+                connected: true
+            });
+        }
+
+        async function ledSendJson(obj) {
+            if (!ledWriter) return;
+            const enc = new TextEncoder();
+            await ledWriter.write(enc.encode(JSON.stringify(obj) + "\n"));
+        }
+
+        function ledProcessLine(line) {
+            if (!line.trim()) return;
+            try {
+                const msg = JSON.parse(line);
+                if (msg.type === 'event') {
+                    console.log('[firmware]', JSON.stringify(msg));
+                    if (msg.msg === 'start_request_rx') {
+                        triggerStart();
+                    }
+                }
+                if (msg.type === "status" && Array.isArray(msg.nodes)) {
+                    ledIsMaster = !!msg.isMaster;
+                    if (msg.selfId) ledSelfId = ledFmtId(msg.selfId);
+                    ledNodes.clear();
+                    for (const n of msg.nodes) {
+                        ledNodes.set(ledFmtId(n.id), {
+                            id: ledFmtId(n.id),
+                            state: Number(n.state),
+                            online: !!n.online,
+                            seq: Number(n.seq ?? 0)
+                        });
+                    }
+                    ledUpdateAvailability();
+                }
+            } catch (e) { /* ignorar errores de parseo */ }
+        }
+
+        async function ledReadLoop() {
+            const decoder = new TextDecoder();
+            try {
+                while (true) {
+                    const { value, done } = await ledReader.read();
+                    if (done) break;
+                    if (value) {
+                        ledReadBuffer += decoder.decode(value, { stream: true });
+                        let idx;
+                        while ((idx = ledReadBuffer.indexOf("\n")) >= 0) {
+                            const line = ledReadBuffer.slice(0, idx).trim();
+                            ledReadBuffer = ledReadBuffer.slice(idx + 1);
+                            ledProcessLine(line);
+                        }
+                    }
+                }
+            } catch (e) {
+                ledStatusBar.textContent = "Desconectado: " + e.message;
+                ledControls.style.display = "none";
+                document.getElementById("esp32ConnectedGroup").style.display = "none";
+                btnConnect.textContent = "🔌 Conectar LEDS USB (ESP32)";
+                btnConnect.classList.remove("connected");
+                ledWriter = null;
+                timekeeperIsReady = false;
+                btnTimekeeperReady.classList.remove('tk-ready');
+                btnTimekeeperReady.style.backgroundColor = '#777';
+                btnTimekeeperReady.style.boxShadow = 'none';
+                btnTimekeeperReady.textContent = 'TIMEKEEPER REPOSO';
+                channel.postMessage({ type: 'led-status', nodes: [], connected: false });
+            }
+        }
+
+        function ledStartHeartbeats() {
+            if (ledClaimTimer) clearInterval(ledClaimTimer);
+            ledClaimTimer = setInterval(async () => {
+                if (!ledWriter) return;
+                await ledSendJson({ cmd: "claim_master" });
+            }, 1000);
+
+            if (ledRefreshTimer) clearInterval(ledRefreshTimer);
+            ledRefreshTimer = setInterval(async () => {
+                if (!ledWriter) return;
+                await ledSendJson({ cmd: "get_status" });
+            }, 2000);
+        }
+
+        async function connectSerial() {
+            if (!("serial" in navigator)) {
+                alert("Tu navegador no soporta Web Serial. Usa Chrome o Edge.");
+                return;
+            }
+            try {
+                ledPort = await navigator.serial.requestPort();
+                await ledPort.open({ baudRate: 115200 });
+                ledWriter = ledPort.writable.getWriter();
+                ledReader = ledPort.readable.getReader();
+
+                btnConnect.textContent = "🔌 USB Conectado";
+                btnConnect.classList.add("connected");
+                ledControls.style.display = "flex";
+                document.getElementById("esp32ConnectedGroup").style.display = "";
+                ledStatusBar.textContent = "Conectado — esperando estado...";
+
+                ledReadLoop();
+                ledStartHeartbeats();
+                await ledSendJson({ cmd: "claim_master" });
+                await ledSendJson({ cmd: "get_status" });
+            } catch (e) {
+                if (e.name !== "NotFoundError") {
+                    ledStatusBar.textContent = "Error al conectar: " + e.message;
+                }
+            }
+        }
+
+        btnConnect.addEventListener("click", connectSerial);
+
+        btnReset.addEventListener("click", async () => {
+            await ledSendJson({ cmd: "set_all", state: 0 });
+            // Reiniciar temporizador y estado de la web
+            channel.postMessage({ type: 'reset-timer' });
+            // Limpiar anuncio de equipo
+            announceActiveTeam = null;
+            if (typeof window.renderTeamPanel === 'function') window.renderTeamPanel();
+            // Si la ventana del temporizador sigue abierta, quedarse en PREPARADO
+            currentState = (timerWindow && !timerWindow.closed) ? STATES.PREPARED : STATES.IDLE;
+            updateUI();
+            // Volver el botón Timekeeper a apariencia REPOSO
+            timekeeperIsReady = false;
+            btnTimekeeperReady.classList.remove('tk-ready');
+            btnTimekeeperReady.style.backgroundColor = '#777';
+            btnTimekeeperReady.style.boxShadow = 'none';
+            btnTimekeeperReady.textContent = 'TIMEKEEPER REPOSO';
+        });
+
+        btnTimekeeperReady.addEventListener("click", async () => {
+            if (!timekeeperIsReady) {
+                await ledSendJson({ cmd: "set_self", state: 3 });
+            } else {
+                await ledSendJson({ cmd: "set_self", state: 0 });
+            }
+        });
     </script>
 </body>
 </html>

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Control LED Flag</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  button { margin-right: 8px; margin-bottom: 8px; padding: 8px 14px; }
+  table { border-collapse: collapse; margin-top: 16px; min-width: 650px; }
+  th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; }
+  .estado-0 { background: #f3f3f3; }
+  .estado-1 { background: #ffddb3; }
+  .estado-2 { background: #d8ec91; }
+  .estado-3 { background: #69f251; }
+  .estado-4 { background: #5a546b; color: white; }
+  .estado-5 { background: #ffb3b3; }
+
+  #statusBar { margin-top: 12px; font-weight: bold; }
+  #log {
+    margin-top: 16px;
+    background: #111;
+    color: #0f0;
+    padding: 10px;
+    height: 220px;
+    overflow: auto;
+    white-space: pre-wrap;
+  }
+</style>
+</head>
+<body>
+
+<h2>Control LED Flag</h2>
+
+<button id="btnConnect">Conectar USB</button>
+<button id="btnRefresh" disabled>Leer estados</button>
+<button id="btnStart" disabled>PARTIDA</button>
+<button id="btnFin" disabled>FIN</button>
+<button id="btnReset" disabled>REPOSO global</button>
+
+<div id="statusBar">Desconectado</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Estado</th>
+      <th>Online</th>
+      <th>Seq</th>
+    </tr>
+  </thead>
+  <tbody id="nodesBody"></tbody>
+</table>
+
+<div id="log"></div>
+
+<script>
+let port = null;
+let reader = null;
+let writer = null;
+let readBuffer = "";
+let nodes = new Map();
+let claimTimer = null;
+let refreshTimer = null;
+let selfId = null;
+let isMaster = false;
+
+const btnConnect = document.getElementById("btnConnect");
+const btnRefresh = document.getElementById("btnRefresh");
+const btnStart = document.getElementById("btnStart");
+const btnFin = document.getElementById("btnFin");
+const btnReset = document.getElementById("btnReset");
+const nodesBody = document.getElementById("nodesBody");
+const statusBar = document.getElementById("statusBar");
+const logEl = document.getElementById("log");
+
+function log(msg) {
+  const ts = new Date().toLocaleTimeString();
+  logEl.textContent += `[${ts}] ${msg}\n`;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function fmtId(v) {
+  return String(Number(v).toString(16).toUpperCase().padStart(8, "0"));
+}
+
+function stateName(s) {
+  switch (Number(s)) {
+    case 0: return "REPOSO";
+    case 1: return "PREPARACION";
+    case 2: return "MUST GO";
+    case 3: return "READY";
+    case 4: return "PARTIDA";
+    case 5: return "FIN";
+    default: return "DESCONOCIDO";
+  }
+}
+
+function renderTable() {
+  nodesBody.innerHTML = "";
+
+  const ordered = [...nodes.values()].sort((a, b) => a.id.localeCompare(b.id));
+
+  for (const n of ordered) {
+    const tr = document.createElement("tr");
+    tr.className = `estado-${n.state}`;
+    tr.innerHTML = `
+      <td>${n.id}</td>
+      <td>${stateName(n.state)}</td>
+      <td>${n.online ? "Sí" : "No"}</td>
+      <td>${n.seq ?? ""}</td>
+    `;
+    nodesBody.appendChild(tr);
+  }
+
+  updateAvailability();
+}
+
+function updateAvailability() {
+  const onlineNodes = [...nodes.values()].filter(n => n.online);
+
+  const hasPreparacion = onlineNodes.some(n => n.state === 1 || n.state === 2);
+  const hasReady = onlineNodes.some(n => n.state === 3);
+  const anyPartida = onlineNodes.some(n => n.state === 4);
+
+  const canStart = isMaster && !hasPreparacion && hasReady && !anyPartida;
+
+  btnRefresh.disabled = !writer;
+  btnReset.disabled = !writer || !isMaster;
+  btnStart.disabled = !writer || !canStart;
+  btnFin.disabled = !writer || !anyPartida;
+
+  statusBar.textContent =
+    `Conectado: ${writer ? "sí" : "no"} | ` +
+    `Maestro: ${isMaster ? "sí" : "no"} | ` +
+    `SelfId: ${selfId ?? "-"} | ` +
+    `Online: ${onlineNodes.length} | ` +
+    `Puede iniciar: ${canStart ? "sí" : "no"}`;
+}
+
+async function sendJson(obj) {
+  if (!writer) {
+    log("No conectado");
+    return;
+  }
+  const enc = new TextEncoder();
+  const line = JSON.stringify(obj) + "\n";
+  log("TX " + line.trim());
+  await writer.write(enc.encode(line));
+}
+
+function processLine(line) {
+  if (!line.trim()) return;
+
+  try {
+    const msg = JSON.parse(line);
+
+    if (msg.type === "status" && Array.isArray(msg.nodes)) {
+      if (msg.selfId !== undefined) selfId = fmtId(msg.selfId);
+      isMaster = !!msg.isMaster;
+
+      nodes.clear();
+      for (const n of msg.nodes) {
+        nodes.set(fmtId(n.id), {
+          id: fmtId(n.id),
+          state: Number(n.state),
+          online: !!n.online,
+          seq: Number(n.seq ?? 0)
+        });
+      }
+
+      log(`STATUS nodes=${msg.nodes.length}`);
+      renderTable();
+      return;
+    }
+
+    if (msg.type === "event") {
+      log(`EVENT ${JSON.stringify(msg)}`);
+      return;
+    }
+
+    log(`RX ${line}`);
+  } catch {
+    log(`RAW ${line}`);
+  }
+}
+
+async function readLoop() {
+  const decoder = new TextDecoder();
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      if (value) {
+        readBuffer += decoder.decode(value, { stream: true });
+
+        let idx;
+        while ((idx = readBuffer.indexOf("\n")) >= 0) {
+          const line = readBuffer.slice(0, idx).trim();
+          readBuffer = readBuffer.slice(idx + 1);
+          processLine(line);
+        }
+      }
+    }
+  } catch (e) {
+    log("Error lectura: " + e.message);
+  }
+}
+
+function startClaimHeartbeat() {
+  if (claimTimer) clearInterval(claimTimer);
+
+  claimTimer = setInterval(async () => {
+    if (!writer) return;
+    await sendJson({ cmd: "claim_master" });
+  }, 1000);
+}
+
+function startRefreshHeartbeat() {
+  if (refreshTimer) clearInterval(refreshTimer);
+
+  refreshTimer = setInterval(async () => {
+    if (!writer) return;
+    await sendJson({ cmd: "get_status" });
+  }, 2000);
+}
+
+async function connectSerial() {
+  if (!("serial" in navigator)) {
+    alert("Tu navegador no soporta Web Serial. Usa Chrome o Edge.");
+    return;
+  }
+
+  port = await navigator.serial.requestPort();
+  await port.open({ baudRate: 115200 });
+
+  writer = port.writable.getWriter();
+  reader = port.readable.getReader();
+
+  log("Puerto serie conectado");
+
+  readLoop();
+  startClaimHeartbeat();
+  startRefreshHeartbeat();
+
+  await sendJson({ cmd: "claim_master" });
+  await sendJson({ cmd: "get_status" });
+}
+
+btnConnect.addEventListener("click", connectSerial);
+
+btnRefresh.addEventListener("click", async () => {
+  await sendJson({ cmd: "get_status" });
+});
+
+btnStart.addEventListener("click", async () => {
+  await sendJson({ cmd: "set_all", state: 4 });
+});
+
+btnFin.addEventListener("click", async () => {
+  await sendJson({ cmd: "set_all", state: 5 });
+});
+
+btnReset.addEventListener("click", async () => {
+  await sendJson({ cmd: "set_all", state: 0 });
+});
+</script>
+</body>
+</html>

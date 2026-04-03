@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -38,14 +38,31 @@
         }
 
         .container {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            position: relative;
             width: 100%;
             height: 100%;
-            padding: 20px;
-            gap: 40px;
+            overflow: hidden;
+        }
+
+        #timerWrapper {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translateX(-50%) translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            border-radius: 12px;
+            overflow: visible;
+            z-index: 300;
+        }
+
+        #timerBgLayer {
+            position: absolute;
+            inset: -8px -16px;
+            border-radius: 14px;
+            z-index: 0;
+            pointer-events: none;
         }
 
         .timer {
@@ -56,8 +73,9 @@
             text-align: center;
             line-height: 1;
             transition: color 0.3s ease;
-            width: 90vw;
-            max-width: 90vw;
+            white-space: nowrap;
+            position: relative;
+            z-index: 1;
             user-select: none;
             cursor: default;
             -webkit-user-select: none;
@@ -79,65 +97,93 @@
 
         @keyframes oscillate {
             0% {
-                transform: translateX(0);
+                transform: translateX(-50%) translateY(-50%);
             }
             25% {
-                transform: translateX(80px);
+                transform: translateX(calc(-50% + 80px)) translateY(-50%);
             }
             50% {
-                transform: translateX(0);
+                transform: translateX(-50%) translateY(-50%);
             }
             75% {
-                transform: translateX(-80px);
+                transform: translateX(calc(-50% - 80px)) translateY(-50%);
             }
             100% {
-                transform: translateX(0);
+                transform: translateX(-50%) translateY(-50%);
             }
         }
 
-        .timer.ending {
+        #timerWrapper.ending {
             animation: oscillate 1.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
         }
 
-        .logos-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 90vw;
-            max-width: 90vw;
-            gap: 2vw;
+        #logosStrip {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            overflow: hidden;
+            z-index: 10;
         }
 
-        .logo-left, .logo-center, .logo-right {
-            flex: 1 1 0;
+        #logosBgLayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #logosRow {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        #logosTrack {
+            display: flex;
+            align-items: center;
+            height: 100%;
+            /* animation se aplica dinámicamente desde JS */
+            will-change: transform;
+            white-space: nowrap;
+        }
+
+        @keyframes logos-marquee {
+            0%   { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        .logo-slot {
+            flex-shrink: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-width: 0;
+            height: 100%;
+            padding: 0 14vw;
         }
 
-        .logos-container img {
-            width: 100%;
+        .logo-slot img {
+            max-height: 80%;
+            max-width: none;
+            width: auto;
             height: auto;
-            max-height: 15vh;
             object-fit: contain;
             cursor: pointer;
             transition: opacity 0.2s ease, transform 0.2s ease;
         }
 
-        .logos-container img:hover {
-            opacity: 0.8;
-            transform: scale(1.05);
+        .logo-slot img:not(.disabled):hover {
+            opacity: 0.85;
+            transform: scale(1.03);
         }
 
-        .logos-container img.disabled {
+        .logo-slot img.disabled {
             cursor: default;
-            opacity: 1;
-        }
-
-        .logos-container img.disabled:hover {
-            opacity: 1;
-            transform: scale(1);
         }
 
 
@@ -216,9 +262,215 @@
             margin-bottom: 20px;
         }
 
+        /* Panel ESP32 */
+        #esp32Panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: none;
+            flex-wrap: nowrap;
+            gap: 0;
+            padding: 0;
+            background: rgba(0, 0, 0, 0.65);
+            z-index: 200;
+            align-items: stretch;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        /* Columna igual para cada mesa + info de ronda */
+        .panel-slot {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            overflow: hidden;
+            padding: 0;
+            box-sizing: border-box;
+            border-right: 1px solid rgba(255,255,255,0.15);
+        }
+        .panel-slot:last-child { border-right: none; }
+
+        /* Fila de cabecera (nombre de la mesa): altura fija 25% */
+        .slot-header {
+            height: 25%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.15);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+            font-weight: bold;
+            letter-spacing: 0.05em;
+            padding: 0 6px;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+
+        /* Cuerpo del slot (nombre del equipo): ocupa el 75% restante */
+        .slot-body {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 2px 6px;
+            box-sizing: border-box;
+        }
+
+        /* Texto del equipo: permite hasta 3 líneas */
+        .slot-team {
+            white-space: normal;
+            overflow: hidden;
+            text-align: center;
+            line-height: 1.15;
+            font-weight: bold;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            line-clamp: 3;
+            -webkit-box-orient: vertical;
+            word-break: break-word;
+            width: 100%;
+        }
+
+        /* Líneas sencillas para el slot de información de ronda */
+        .slot-line {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+            line-height: 1.2;
+            width: 100%;
+        }
+
+        /* Colores vivos de estado en slots de mesa */
+        .panel-slot-mesa.st-0 { background: rgba(60,60,60,0.55);    color: #ccc; }
+        .panel-slot-mesa.st-1 { background: rgba(230,180,0,0.85);   color: #000; }
+        .panel-slot-mesa.st-2 { background: rgba(220,100,0,0.85);   color: #fff; }
+        .panel-slot-mesa.st-3 { background: rgba(10,170,40,0.90);   color: #fff; }
+        .panel-slot-mesa.st-4 { background: rgba(10,80,210,0.90);   color: #fff; }
+        .panel-slot-mesa.st-5 { background: rgba(210,20,0,0.90);    color: #fff; }
+        .panel-slot-ronda     { background: rgba(0,0,0,0.35);       color: #eee; }
+
+        /* Round info panel inside timer wrapper */
+        #roundInfoPanel {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            line-height: 1.3;
+            z-index: 1;
+            position: relative;
+            flex-shrink: 0;
+            text-align: center;
+            gap: 0.15em;
+        }
+
+        #roundInfoPanel .round-line {
+            font-weight: bold;
+        }
+
+        /* Chroma panel */
+        #chromaPanel {
+            position: fixed;
+            z-index: 150;
+            display: none;
+        }
+
+        /* Team announce overlay */
+        #teamAnnounceOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            z-index: 500;
+            pointer-events: none;
+            overflow: visible;
+        }
+
+        #teamAnnounceOverlay .announce-text {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            box-sizing: border-box;
+            font-weight: bold;
+            text-align: center;
+            paint-order: stroke fill;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.15;
+        }
+
+        #teamAnnounceOverlay .announce-mesa {
+            font-size: 0.5em;
+            opacity: 0.85;
+            display: block;
+            margin-bottom: 0.1em;
+        }
+
+        /* Vertical logos strip */
+        #logosVerticalStrip {
+            position: fixed;
+            left: 0;
+            display: none;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: space-around;
+            z-index: 10;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        #logosVerticalBgLayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #logosVerticalTrack {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            z-index: 1;
+            padding: 6px 6px;
+            box-sizing: border-box;
+        }
+
+        .logo-slot-v {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 4px 0;
+        }
+
+        .logo-slot-v img {
+            max-width: 85%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+
     </style>
 </head>
 <body>
+    <div id="esp32Panel"></div>
+
     <div class="position-overlay" id="positionOverlay">
         <div class="position-message">
             Coloque la ventana en la posición y tamaño para proyectar y haga click para guardar.
@@ -226,18 +478,21 @@
     </div>
 
     <div class="container" id="container">
-        <div class="timer ready" id="timer">2:30</div>
-        <div class="logos-container">
-            <div class="logo-left">
-                <img id="logoLeft" src="isoy-tr-brgh-768x178.png" alt="Logo Izquierdo">
-            </div>
-            <div class="logo-center">
-                <img id="logoCenter" src="first_age_fll_unearthed_white.png" alt="Logo Central">
-            </div>
-            <div class="logo-right">
-                <img id="logoRight" src="FIRSTLego-SPAIN-logo-small.png" alt="Logo Derecho">
-            </div>
+        <div id="timerWrapper">
+            <div id="timerBgLayer"></div>
+            <div id="roundInfoPanel"></div>
+            <div class="timer ready" id="timer">2:30</div>
         </div>
+    </div>
+    <div id="chromaPanel"></div>
+    <div id="teamAnnounceOverlay"></div>
+    <div id="logosVerticalStrip">
+        <div id="logosVerticalBgLayer"></div>
+        <div id="logosVerticalTrack"></div>
+    </div>
+    <div id="logosStrip" style="display:none;">
+        <div id="logosBgLayer"></div>
+        <div id="logosRow"><div id="logosTrack"></div></div>
     </div>
 
 
@@ -250,14 +505,26 @@
         let isRunning = false;
         let timerInterval = null;
         let endingPhase = false;
+        let timerStartedAt = null; // Fecha real de inicio de la ronda
+        let countdownInterval = null; // Intervalo para actualizar el countdown previo al inicio
+
+        function startCountdownRefresh() {
+            if (countdownInterval) clearInterval(countdownInterval);
+            countdownInterval = setInterval(() => {
+                if (!isRunning && !endingPhase) refreshPanel();
+            }, 30000);
+        }
+
+        function stopCountdownRefresh() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+        }
 
         // Elementos del DOM
         const positionOverlay = document.getElementById('positionOverlay');
         const timerDisplay = document.getElementById('timer');
-        const logosContainer = document.querySelector('.logos-container');
-        const logoLeft = document.getElementById('logoLeft');
-        const logoCenter = document.getElementById('logoCenter');
-        const logoRight = document.getElementById('logoRight');
 
         // Canal de comunicación entre ventanas
         const channel = new BroadcastChannel('fll-timer-channel');
@@ -279,26 +546,288 @@
                 color10sec: localStorage.getItem('color10sec') || '#ff0000',
                 fontType: localStorage.getItem('fontType') || 'normal',
                 backgroundImagePath: localStorage.getItem('backgroundImagePath') || 'Fondo_temporada.png',
-                logoLeftPath: localStorage.getItem('logoLeftPath') || 'isoy-tr-brgh-768x178.png',
-                logoCenterPath: localStorage.getItem('logoCenterPath') || 'first_age_fll_unearthed_white.png',
-                logoRightPath: localStorage.getItem('logoRightPath') || 'FIRSTLego-SPAIN-logo-small_white.png'
+                logosArray: (() => { try { const s = localStorage.getItem('logosArray'); return s ? JSON.parse(s) : null; } catch(e) { return null; } })() || ['isoy-tr-brgh-768x178.png', 'first_age_fll_unearthed_white.png', 'FIRSTLego-SPAIN-logo-small_white.png'],
+                logosMarquee: localStorage.getItem('logosMarquee') !== 'false',
+                logosBgColor: localStorage.getItem('logosBgColor') || '#000000',
+                logosBgOpacity: parseFloat(localStorage.getItem('logosBgOpacity') || '70') / 100,
+                logosStripHeight: parseInt(localStorage.getItem('logosStripHeight') || '20') || 20,
+                timerPositionY: parseInt(localStorage.getItem('timerPositionY') || '50'),
+                timerWidth: parseInt(localStorage.getItem('timerWidth') || '90'),
+                timerBgColor: localStorage.getItem('timerBgColor') || '#000000',
+                timerBgOpacity: parseFloat(localStorage.getItem('timerBgOpacity') || '0') / 100,
+                timerBgPadding: parseInt(localStorage.getItem('timerBgPadding') || '0'),
+                timerStrokeColor: localStorage.getItem('timerStrokeColor') || '#000000',
+                timerStrokeWidth: parseInt(localStorage.getItem('timerStrokeWidth') || '0'),
+                textsStrokeColor: localStorage.getItem('textsStrokeColor') || '#000000',
+                textsStrokeWidth: parseInt(localStorage.getItem('textsStrokeWidth') || '0'),
+                partidasPanelHeight: parseInt(localStorage.getItem('partidasPanelHeight') || '15'),
+                partidasBgColor: localStorage.getItem('partidasBgColor') || '#000000',
+                partidasBgOpacity: parseFloat(localStorage.getItem('partidasBgOpacity') || '65') / 100,
+                chromaShow: localStorage.getItem('chromaShow') === 'true',
+                chromaColor: localStorage.getItem('chromaColor') || '#00ff00',
+                chromaPosition: localStorage.getItem('chromaPosition') || 'center',
+                announceTextSize: parseInt(localStorage.getItem('announceTextSize') || '10'),
+                announceTextColor: localStorage.getItem('announceTextColor') || '#ffffff',
+                announceTextTop: parseInt(localStorage.getItem('announceTextTop') || '50'),
+                announceTextOffsetX: parseInt(localStorage.getItem('announceTextOffsetX') || '0'),
+                announceMaxWidth: parseInt(localStorage.getItem('announceMaxWidth') || '90'),
+                announceStrokeColor: localStorage.getItem('announceStrokeColor') || '#000000',
+                announceStrokeWidth: parseInt(localStorage.getItem('announceStrokeWidth') || '12'),
+                timerPositionX: parseInt(localStorage.getItem('timerPositionX') || '50'),
+                logosOrientation: localStorage.getItem('logosOrientation') || 'horizontal',
+                logosVerticalWidth: parseInt(localStorage.getItem('logosVerticalWidth') || '10'),
+                stateColors: [
+                    { bg: localStorage.getItem('stateColor0') || '#3c3c3c', text: localStorage.getItem('stateTextColor0') || '#cccccc' },
+                    { bg: localStorage.getItem('stateColor1') || '#e6b400', text: localStorage.getItem('stateTextColor1') || '#000000' },
+                    { bg: localStorage.getItem('stateColor2') || '#dc6400', text: localStorage.getItem('stateTextColor2') || '#ffffff' },
+                    { bg: localStorage.getItem('stateColor3') || '#0aaa28', text: localStorage.getItem('stateTextColor3') || '#ffffff' },
+                    { bg: localStorage.getItem('stateColor4') || '#0a50d2', text: localStorage.getItem('stateTextColor4') || '#ffffff' },
+                    { bg: localStorage.getItem('stateColor5') || '#d21400', text: localStorage.getItem('stateTextColor5') || '#ffffff' },
+                ]
             };
         }
 
-        // Aplicar imágenes de los logos
+        // Aplicar imágenes de los logos (marquee rotativo)
         function applyLogoImages() {
             const settings = loadSettings();
+            const track = document.getElementById('logosTrack');
+            if (!track) return;
             const timestamp = new Date().getTime();
-            if (logoLeft) logoLeft.src = settings.logoLeftPath + '?t=' + timestamp;
-            if (logoCenter) logoCenter.src = settings.logoCenterPath + '?t=' + timestamp;
-            if (logoRight) logoRight.src = settings.logoRightPath + '?t=' + timestamp;
+            const validLogos = settings.logosArray.filter(p => p && p.trim());
+            if (validLogos.length === 0) return;
+            // Generar los slots duplicados para el bucle continuo
+            const slotsHtml = validLogos.map((path, idx) =>
+                `<div class="logo-slot"><img src="${path.trim()}?t=${timestamp}" alt="Logo ${idx + 1}" draggable="false"></div>`
+            ).join('');
+            if (settings.logosMarquee) {
+                // Duplicamos el conjunto para que el scroll sea infinito
+                track.innerHTML = slotsHtml + slotsHtml;
+                // Velocidad: ~80px/s. Se calcula tras cargar imágenes para tener ancho real.
+                requestAnimationFrame(() => {
+                    const totalW = track.scrollWidth / 2; // la mitad porque está duplicado
+                    const speedPxPerSec = 80;
+                    const duration = totalW / speedPxPerSec;
+                    track.style.animation = `logos-marquee ${duration.toFixed(1)}s linear infinite`;
+                });
+            } else {
+                // Estático: mostrar logos repartidos sin animación
+                track.innerHTML = slotsHtml;
+                track.style.animation = 'none';
+                track.style.justifyContent = 'space-around';
+                track.style.width = '100%';
+            }
+            track.querySelectorAll('img').forEach(img => img.addEventListener('click', handleLogoClick));
+            updateLogosClickableState();
         }
 
         // Aplicar visibilidad de logos
         function applyLogosVisibility() {
             const settings = loadSettings();
-            if (logosContainer) {
-                logosContainer.style.display = settings.showLogos ? 'flex' : 'none';
+            const strip = document.getElementById('logosStrip');
+            const vStrip = document.getElementById('logosVerticalStrip');
+            if (strip) {
+                // Only show horizontal strip when orientation is horizontal
+                strip.style.display = (settings.showLogos && settings.logosOrientation !== 'vertical') ? 'block' : 'none';
+            }
+            if (vStrip) {
+                vStrip.style.display = (settings.showLogos && settings.logosOrientation === 'vertical') ? 'flex' : 'none';
+            }
+            applyTimerPosition();
+        }
+
+        // Aplicar panel chroma
+        function applyChromaPanel() {
+            const settings = loadSettings();
+            const panel = document.getElementById('chromaPanel');
+            if (!panel) return;
+
+            if (!settings.chromaShow) {
+                panel.style.display = 'none';
+                return;
+            }
+
+            panel.style.display = 'block';
+            panel.style.backgroundColor = settings.chromaColor;
+
+            // Calculate available area between esp32Panel and logosStrip
+            const esp32 = document.getElementById('esp32Panel');
+            const logos = document.getElementById('logosStrip');
+
+            const topOffset = esp32 ? esp32.offsetHeight : 0;
+            const bottomOffset = (logos && logos.style.display !== 'none' && settings.showLogos) ? logos.offsetHeight : 0;
+            const availH = window.innerHeight - topOffset - bottomOffset;
+            const availW = window.innerWidth;
+
+            // 16:9 aspect ratio fit within available space
+            let panelW, panelH;
+            if (availW / availH > 16 / 9) {
+                // Height is the constraint
+                panelH = availH;
+                panelW = Math.round(panelH * 16 / 9);
+            } else {
+                // Width is the constraint
+                panelW = availW;
+                panelH = Math.round(panelW * 9 / 16);
+            }
+
+            panel.style.width = panelW + 'px';
+            panel.style.height = panelH + 'px';
+            panel.style.top = topOffset + 'px';
+
+            // Position based on setting
+            if (settings.chromaPosition === 'left') {
+                panel.style.left = '0px';
+            } else if (settings.chromaPosition === 'right') {
+                panel.style.left = (availW - panelW) + 'px';
+            } else {
+                // center
+                panel.style.left = Math.round((availW - panelW) / 2) + 'px';
+            }
+        }
+
+        // Anuncio de equipo en pantalla
+        let currentAnnounceTeam = null;
+        let currentAnnounceMesa = null;
+
+        function applyTeamAnnounce(teamName, mesaName) {
+            const overlay = document.getElementById('teamAnnounceOverlay');
+            const wrapper = document.getElementById('timerWrapper');
+
+            currentAnnounceTeam = teamName;
+            currentAnnounceMesa = mesaName || null;
+
+            if (!teamName) {
+                overlay.style.display = 'none';
+                overlay.innerHTML = '';
+                if (wrapper) wrapper.style.visibility = '';
+                return;
+            }
+
+            const settings = loadSettings();
+
+            if (wrapper) wrapper.style.visibility = 'hidden';
+
+            overlay.style.display = 'block';
+            overlay.innerHTML = '';
+            const text = document.createElement('div');
+            text.className = 'announce-text';
+            if (mesaName) {
+                const mesaSpan = document.createElement('span');
+                mesaSpan.className = 'announce-mesa';
+                mesaSpan.textContent = mesaName;
+                text.appendChild(mesaSpan);
+            }
+            const teamSpan = document.createElement('span');
+            teamSpan.textContent = teamName;
+            text.appendChild(teamSpan);
+
+            text.style.fontSize = settings.announceTextSize + 'vw';
+            text.style.color = settings.announceTextColor;
+            text.style.webkitTextStroke = (settings.announceStrokeWidth / 100).toFixed(2) + 'em ' + settings.announceStrokeColor;
+            text.style.top = (100 - settings.announceTextTop) + '%';
+            text.style.transform = 'translateY(-50%)';
+            const maxW = settings.announceMaxWidth;
+            const pad = (100 - maxW) / 2;
+            const offsetVw = settings.announceTextOffsetX;
+            text.style.paddingLeft = 'calc(' + pad + 'vw + ' + offsetVw + 'vw)';
+            text.style.paddingRight = 'calc(' + pad + 'vw - ' + offsetVw + 'vw)';
+            overlay.appendChild(text);
+        }
+
+        // Aplicar tamaño y estilo de franja de logotipos
+        function applyLogosStrip() {
+            const settings = loadSettings();
+            const strip = document.getElementById('logosStrip');
+            const bgLayer = document.getElementById('logosBgLayer');
+            if (!strip || !bgLayer) return;
+            strip.style.height = settings.logosStripHeight + 'vh';
+            bgLayer.style.backgroundColor = settings.logosBgColor;
+            bgLayer.style.opacity = settings.logosBgOpacity;
+            // Sync vertical strip background too
+            const vbg = document.getElementById('logosVerticalBgLayer');
+            if (vbg) {
+                vbg.style.backgroundColor = settings.logosBgColor;
+                vbg.style.opacity = settings.logosBgOpacity;
+            }
+        }
+
+        // Aplicar logos en modo vertical
+        function applyLogosVerticalStrip() {
+            const settings = loadSettings();
+            const vStrip = document.getElementById('logosVerticalStrip');
+            const hStrip = document.getElementById('logosStrip');
+            if (!vStrip) return;
+
+            if (!settings.showLogos || settings.logosOrientation !== 'vertical') {
+                vStrip.style.display = 'none';
+                return;
+            }
+
+            // Calculate vertical extent: below esp32Panel, full height above logosStrip (which is hidden in vertical mode)
+            const esp32 = document.getElementById('esp32Panel');
+            const topOffset = esp32 ? esp32.offsetHeight : 0;
+            const availH = window.innerHeight - topOffset;
+
+            // Width: if chroma active, fill space left by chroma; else use configured %
+            let widthPx;
+            const chromaPanel = document.getElementById('chromaPanel');
+            if (settings.chromaShow && chromaPanel && chromaPanel.style.display !== 'none') {
+                const chromaLeft = parseFloat(chromaPanel.style.left) || 0;
+                widthPx = chromaLeft; // space to the left of chroma
+                if (widthPx <= 0) widthPx = Math.round(window.innerWidth * settings.logosVerticalWidth / 100);
+            } else {
+                widthPx = Math.round(window.innerWidth * settings.logosVerticalWidth / 100);
+            }
+
+            vStrip.style.display = 'flex';
+            vStrip.style.top = topOffset + 'px';
+            vStrip.style.height = availH + 'px';
+            vStrip.style.width = widthPx + 'px';
+
+            const vbg = document.getElementById('logosVerticalBgLayer');
+            if (vbg) {
+                vbg.style.backgroundColor = settings.logosBgColor;
+                vbg.style.opacity = settings.logosBgOpacity;
+            }
+
+            // Render logos vertically
+            const track = document.getElementById('logosVerticalTrack');
+            if (!track) return;
+            const timestamp = new Date().getTime();
+            const validLogos = settings.logosArray.filter(p => p && p.trim());
+            if (validLogos.length === 0) { track.innerHTML = ''; return; }
+            track.innerHTML = validLogos.map((path, idx) =>
+                `<div class="logo-slot-v"><img src="${path.trim()}?t=${timestamp}" alt="Logo ${idx + 1}" draggable="false"></div>`
+            ).join('');
+        }
+
+        // Aplicar posición y tamaño del temporizador
+        function applyTimerPosition() {
+            const settings = loadSettings();
+            const wrapper = document.getElementById('timerWrapper');
+            const bgLayer = document.getElementById('timerBgLayer');
+            if (!wrapper) return;
+            // timerPositionY: 0=temporizador centrado en la parte inferior, 100=centrado en la parte superior
+            const topPct = 100 - settings.timerPositionY; // 0%→100vh (abajo), 100%→0vh (arriba)
+            const leftPct = settings.timerPositionX; // 0%=izda, 100%=dcha
+            const widthVw = settings.timerWidth;
+            const pad = settings.timerBgPadding;
+            wrapper.style.minWidth = widthVw + 'vw';
+            wrapper.style.width = 'auto';
+            wrapper.style.top = topPct + 'vh';
+            wrapper.style.left = leftPct + 'vw';
+            wrapper.style.transform = 'translateX(-50%) translateY(-50%)';
+            timerDisplay.style.fontSize = (widthVw * 0.356) + 'vw';
+            // Size round info panel font relative to timer
+            const roundInfoPanel = document.getElementById('roundInfoPanel');
+            if (roundInfoPanel) {
+                roundInfoPanel.style.fontSize = (widthVw * 0.06) + 'vw';
+                roundInfoPanel.style.marginRight = (widthVw * 0.02) + 'vw';
+            }
+            if (bgLayer) {
+                bgLayer.style.backgroundColor = settings.timerBgColor;
+                bgLayer.style.opacity = settings.timerBgOpacity;
+                bgLayer.style.inset = `-${pad}px -${pad * 2}px`;
             }
         }
 
@@ -394,6 +923,28 @@
                 timerDisplay.style.letterSpacing = 'normal';
                 timerDisplay.style.fontWeight = 'bold';
             }
+
+            // Aplicar reborde configurable al contador
+            if (settings.timerStrokeWidth > 0) {
+                const strokeVal = (settings.timerStrokeWidth / 100).toFixed(2) + 'em ' + settings.timerStrokeColor;
+                timerDisplay.style.webkitTextStroke = strokeVal;
+                timerDisplay.style.paintOrder = 'stroke fill';
+            } else {
+                timerDisplay.style.webkitTextStroke = '';
+                timerDisplay.style.paintOrder = '';
+            }
+
+            // Aplicar reborde configurable a los textos (round info)
+            const wrapper = document.getElementById('timerWrapper');
+            if (wrapper) {
+                if (settings.textsStrokeWidth > 0) {
+                    wrapper.style.webkitTextStroke = (settings.textsStrokeWidth / 100).toFixed(2) + 'em ' + settings.textsStrokeColor;
+                    wrapper.style.paintOrder = 'stroke fill';
+                } else {
+                    wrapper.style.webkitTextStroke = '';
+                    wrapper.style.paintOrder = '';
+                }
+            }
         }
 
         function formatTime(seconds) {
@@ -407,31 +958,45 @@
             timerDisplay.textContent = formatTime(timeRemaining);
             
             // Agregar o quitar animación de oscilación durante la fase final
+            const timerWrapper = document.getElementById('timerWrapper');
             if (endingPhase) {
-                timerDisplay.classList.add('ending');
+                if (timerWrapper) timerWrapper.classList.add('ending');
             } else {
-                timerDisplay.classList.remove('ending');
+                if (timerWrapper) timerWrapper.classList.remove('ending');
             }
             
-            // Aplicar colores según el tiempo restante usando colores personalizados
+            // Determinar color según el tiempo restante
+            let currentColor;
             if (endingPhase) {
-                // Durante la fase final, usar el color de los últimos 10 segundos
-                timerDisplay.style.color = settings.color10sec;
+                currentColor = settings.color10sec;
             } else if (timeRemaining <= 10 && isRunning) {
-                timerDisplay.style.color = settings.color10sec;
+                currentColor = settings.color10sec;
             } else if (timeRemaining <= 30 && isRunning) {
-                timerDisplay.style.color = settings.color30sec;
+                currentColor = settings.color30sec;
             } else if (isRunning) {
-                timerDisplay.style.color = settings.colorNormal;
+                currentColor = settings.colorNormal;
             } else {
-                timerDisplay.style.color = settings.colorReady;
+                currentColor = settings.colorNormal;
+            }
+            timerDisplay.style.color = currentColor;
+
+            // Sincronizar color de ronda/hora con el temporizador
+            const roundInfoPanel = document.getElementById('roundInfoPanel');
+            if (roundInfoPanel) {
+                roundInfoPanel.querySelectorAll('.round-line:not([data-diff])').forEach(el => {
+                    el.style.color = '#cccccc';
+                });
             }
         }
 
         function startTimer() {
             isRunning = true;
+            applyTeamAnnounce(null);
+            timerStartedAt = new Date();
             timerDisplay.classList.remove('ready');
-            
+            stopCountdownRefresh();
+            refreshPanel();
+
             // Notificar a la ventana de control que el timer ha iniciado
             channel.postMessage({ type: 'timer-started' });
             
@@ -535,6 +1100,9 @@
 
             // Enviar señal para reproducir el buzzer
             channel.postMessage({ type: 'play-sound', sound: 'buzzer' });
+
+            // Notificar fin de tiempo a index.html para que envíe FIN a ESP32
+            channel.postMessage({ type: 'timer-ended' });
             
             // Countdown de los 30 segundos de espera
             let remainingEndTime = END_DISPLAY_TIME;
@@ -573,8 +1141,11 @@
         function resetTimer() {
             timeRemaining = TOTAL_TIME;
             endingPhase = false;
+            timerStartedAt = null;
             updateDisplay();
             updateLogosClickableState();
+            refreshPanel();
+            startCountdownRefresh();
             
             // Notificar reset
             channel.postMessage({ 
@@ -604,16 +1175,30 @@
                 }
                 isRunning = false;
                 timeRemaining = TOTAL_TIME;
+                timerStartedAt = null;
+                applyTeamAnnounce(null);
                 updateDisplay();
                 updateLogosClickableState();
+                refreshPanel();
+                startCountdownRefresh();
             } else if (type === 'settings-changed') {
                 // Las configuraciones han cambiado - aplicar nuevos estilos
                 applyBackgroundColor();
                 applyBackgroundVisibility();
+                applyLogosStrip();
                 applyLogosVisibility();
                 applyLogoImages();
+                applyTimerPosition();
                 applyFontStyle();
+                applyChromaPanel();
+                applyLogosVerticalStrip();
                 updateDisplay();
+                updatePanelHeight();
+                
+                // Actualizar estilo del anuncio de equipo si está activo
+                if (currentAnnounceTeam) {
+                    applyTeamAnnounce(currentAnnounceTeam, currentAnnounceMesa);
+                }
                 
                 // Verificar si se debe mostrar u ocultar el overlay según la configuración
                 const settings = loadSettings();
@@ -652,8 +1237,284 @@
                 if (settings.closeAfter30sec) {
                     showPositionOverlay();
                 }
+            } else if (type === 'led-status') {
+                lastLedStatus = event.data;
+                ledConnected = event.data.connected;
+                if (event.data.selfId) ledSelfId = event.data.selfId;
+                if (ledConnected && event.data.nodes) {
+                    const online = event.data.nodes.filter(n => n.online);
+                    const hasPreparacion = online.some(n => n.state === 1 || n.state === 2);
+                    const hasReady = online.some(n => n.state === 3);
+                    const anyPartida = online.some(n => n.state === 4);
+                    ledCanStart = event.data.isMaster !== false && !hasPreparacion && hasReady && !anyPartida;
+                    const masterNode = ledSelfId ? online.find(n => n.id === ledSelfId) : null;
+                    ledMasterIsReady = masterNode ? masterNode.state === 3 : false;
+                } else {
+                    ledCanStart = false;
+                    ledMasterIsReady = false;
+                }
+                renderEsp32Panel(event.data.nodes, event.data.connected, ledSelfId);
+                updateTimerReadyDisplay();
+                updateLogosClickableState();
+            } else if (type === 'team-announce') {
+                applyTeamAnnounce(event.data.teamName, event.data.mesaName);
+            } else if (type === 'team-announce-clear') {
+                applyTeamAnnounce(null);
             }
         });
+
+        let ledConnected = false;
+        let ledCanStart = false;
+        let ledMasterIsReady = false;
+        let ledSelfId = null; // ID del nodo maestro (USB)
+        let lastLedStatus = null;
+
+        function refreshPanel() {
+            const d = lastLedStatus;
+            renderEsp32Panel(d ? d.nodes : null, d ? d.connected : false, ledSelfId);
+        }
+
+        setTimeout(() => { renderEsp32Panel(null, false, null); applyChromaPanel(); applyLogosVerticalStrip(); }, 0); // mostrar equipos de partida activa aunque no haya LEDs
+
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'mesaHeaders' || e.key === 'partidasData') {
+                const d = lastLedStatus;
+                renderEsp32Panel(d ? d.nodes : null, d ? d.connected : false, ledSelfId);
+            }
+        });
+
+        const ESP32_STATE_NAMES = {
+            1: 'PREPARACION',
+            2: 'PREPARANDO',
+            3: 'READY',
+            4: 'PARTIDA',
+            5: 'FIN'
+        };
+
+        // Muestra -:-- cuando el LED maestro está conectado pero no en READY, y el timer está parado
+        function updateTimerReadyDisplay() {
+            if (isRunning || endingPhase) return;
+            const settings = loadSettings();
+            if (ledConnected && !ledMasterIsReady) {
+                timerDisplay.textContent = '';
+                timerDisplay.style.color = settings.colorReady;
+            } else {
+                timerDisplay.textContent = formatTime(timeRemaining);
+                timerDisplay.style.color = settings.colorNormal;
+            }
+        }
+
+        function updatePanelHeight() {
+            const panel = document.getElementById('esp32Panel');
+            if (!panel || panel.style.display === 'none') return;
+            const settings = loadSettings();
+            panel.style.height = settings.partidasPanelHeight + 'vh';
+            const hex = settings.partidasBgColor;
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            panel.style.background = `rgba(${r},${g},${b},${settings.partidasBgOpacity})`;
+            fitPanelText();
+        }
+
+        window.addEventListener('resize', updatePanelHeight);
+
+        // Recalcular la altura del panel cuando el layout cambie (p.ej. al cargar imágenes de logos)
+        if (window.ResizeObserver) {
+            const layoutObserver = new ResizeObserver(() => {
+                updatePanelHeight();
+            });
+            const container = document.getElementById('container');
+            if (container) layoutObserver.observe(container);
+        }
+
+        function renderEsp32Panel(nodes, connected, selfId) {
+            const panel = document.getElementById('esp32Panel');
+            if (!panel) return;
+            const settings = loadSettings();
+            const stateColors = settings.stateColors;
+
+            let nodeConfig = [];
+            try { nodeConfig = JSON.parse(localStorage.getItem('esp32NodeConfig') || '[]'); } catch {}
+
+            let mesaHeaders = [];
+            let activePartida = null;
+            try {
+                mesaHeaders = JSON.parse(localStorage.getItem('mesaHeaders') || '[]');
+                const partidasData = JSON.parse(localStorage.getItem('partidasData') || '[]');
+                activePartida = partidasData.find(p => p.activa) || null;
+            } catch {}
+
+            // ---- Modo con partidas: la fuente de verdad son las mesas ----
+            if (activePartida && mesaHeaders.length) {
+                // Construir un mapa displayName -> nodo
+                const nodeMap = {};
+                if (connected && nodes) {
+                    for (const n of nodes) {
+                        if (!n.online) continue;
+                        const cfg = nodeConfig.find(c => c.id === n.id);
+                        const displayName = (cfg && cfg.name) ? cfg.name : n.id;
+                        nodeMap[displayName.trim().toLowerCase()] = n;
+                    }
+                }
+
+                // Una tarjeta por mesa que tenga equipo
+                const cards = [];
+                for (let i = 0; i < mesaHeaders.length; i++) {
+                    const header = mesaHeaders[i];
+                    const teamName = (activePartida.mesas[i] || '').trim();
+                    if (!teamName) continue; // sin equipo → no mostrar
+
+                    const node = nodeMap[header.trim().toLowerCase()] || null;
+                    // Si el nodo es el maestro, mostrar de todas formas pero sin estado LED
+                    const isSelf = node && node.id === selfId;
+
+                    // Estado: si no hay nodo, es el maestro, o está desconectado → estado 0
+                    const state = (node && !isSelf && node.state !== undefined) ? node.state : 0;
+
+                    cards.push({ header, teamName, state });
+                }
+
+                if (cards.length === 0) {
+                    panel.style.display = 'none';
+                    panel.style.height = '';
+                    panel.innerHTML = '';
+                    const rip = document.getElementById('roundInfoPanel');
+                    if (rip) { rip.style.display = 'none'; rip.innerHTML = ''; }
+                    return;
+                }
+
+// Render round info into the roundInfoPanel (inside timerWrapper)
+                const roundInfoPanel = document.getElementById('roundInfoPanel');
+                const rondaLabel = activePartida.ronda || '';
+                if (roundInfoPanel) {
+                    if (rondaLabel || activePartida.hora) {
+                        let diffText = '', diffColor = '#ccc';
+                        if (activePartida.hora) {
+                            if (timerStartedAt) {
+                                const [hh, mm] = activePartida.hora.split(':').map(Number);
+                                const scheduled = new Date(timerStartedAt);
+                                scheduled.setHours(hh, mm, 0, 0);
+                                const diffMs = timerStartedAt - scheduled;
+                                const diffMin = Math.round(diffMs / 60000);
+                                diffText = diffMin === 0 ? 'En hora' : (diffMin > 0 ? `+${diffMin}\u2032` : `${diffMin}\u2032`);
+                                diffColor = diffMin <= 0 ? settings.colorNormal : settings.color10sec;
+                            } else {
+                                const now = new Date();
+                                const [hh, mm] = activePartida.hora.split(':').map(Number);
+                                const scheduled = new Date(now);
+                                scheduled.setHours(hh, mm, 0, 0);
+                                const diffMs = scheduled - now;
+                                const diffMin = Math.round(Math.abs(diffMs) / 60000);
+                                diffColor = diffMs >= 0 ? settings.colorNormal : settings.color10sec;
+                                diffText = diffMs >= 0 ? (diffMin === 0 ? '\u00a1Ahora!' : `en ${diffMin}\u2032`) : `${diffMin}\u2032`;
+                            }
+                        }
+                        // Use current timer color for ronda/hora text
+                        const timerColor = timerDisplay.style.color || settings.colorNormal;
+                        const lines = [];
+                        if (rondaLabel) lines.push(`<div class="round-line" style="color:#cccccc;">${rondaLabel}</div>`);
+                        if (activePartida.hora) lines.push(`<div class="round-line" style="color:#cccccc;">${activePartida.hora}</div>`);
+                        if (diffText) lines.push(`<div class="round-line" data-diff="1" style="color:${diffColor};font-weight:bold;">${diffText}</div>`);
+                        roundInfoPanel.innerHTML = lines.join('');
+                        roundInfoPanel.style.display = 'flex';
+                    } else {
+                        roundInfoPanel.innerHTML = '';
+                        roundInfoPanel.style.display = 'none';
+                    }
+                }
+
+                panel.innerHTML = cards.map(c => {
+                    const sc = stateColors[c.state];
+                    const bgStyle = sc ? `background:${sc.bg};color:${sc.text};` : '';
+                    return `<div class="panel-slot panel-slot-mesa st-${c.state}" style="${bgStyle}">
+                    <div class="slot-header">${c.header}</div>
+                    <div class="slot-body"><div class="slot-team">${c.teamName}</div></div>
+                </div>`;
+                }).join('');
+                panel.style.display = 'flex';
+                updatePanelHeight();
+                fitPanelText();
+                return;
+            }
+
+            // ---- Modo sin partidas: mostrar nodos no-reposo (conducta original) ----
+            // Hide round info panel when no partidas
+            const ripNoPartida = document.getElementById('roundInfoPanel');
+            if (ripNoPartida) { ripNoPartida.style.display = 'none'; ripNoPartida.innerHTML = ''; }
+
+            if (!connected || !nodes || nodes.length === 0) {
+                panel.style.display = 'none';
+                panel.style.height = '';
+                panel.innerHTML = '';
+                return;
+            }
+
+            const visible = nodes.filter(n => n.online && n.state !== 0 && n.id !== selfId);
+
+            if (visible.length === 0) {
+                panel.style.display = 'none';
+                panel.style.height = '';
+                panel.innerHTML = '';
+                return;
+            }
+
+            const enriched = visible.map(n => {
+                const cfg = nodeConfig.find(c => c.id === n.id);
+                return {
+                    ...n,
+                    displayName: (cfg && cfg.name) ? cfg.name : n.id,
+                    order: (cfg && cfg.order != null) ? cfg.order : 9999
+                };
+            }).sort((a, b) => a.order - b.order);
+
+            panel.innerHTML = enriched.map(n => {
+                const label = ESP32_STATE_NAMES[n.state] || n.displayName;
+                const sc = stateColors[n.state];
+                const bgStyle = sc ? `background:${sc.bg};color:${sc.text};` : '';
+                return `<div class="panel-slot panel-slot-mesa st-${n.state}" style="${bgStyle}">
+                    <div class="slot-header">${n.displayName}</div>
+                    <div class="slot-body"><div class="slot-team">${label}</div></div>
+                </div>`;
+            }).join('');
+            panel.style.display = 'flex';
+            updatePanelHeight();
+            fitPanelText();
+        }
+
+        // Ajusta el texto de cada slot:
+        // - .slot-header: tamaño uniforme igual en todos los slots (25% altura del panel)
+        // - .slot-team: tamaño máximo que quepa en el ancho del slot y la altura disponible
+        function fitPanelText() {
+            const panel = document.getElementById('esp32Panel');
+            if (!panel || panel.style.display === 'none') return;
+            const panelH = panel.offsetHeight;
+
+            // 1. Cabeceras: mismo tamaño en todos los slots basado en 25% del panel
+            const headerH = panelH * 0.25;
+            const headerSize = Math.max(6, Math.floor(headerH * 0.65));
+            panel.querySelectorAll('.slot-header').forEach(h => {
+                h.style.fontSize = headerSize + 'px';
+            });
+
+            // 2. Nombres de equipo y texto de ronda: por slot, tamaño que quepa en ancho y en altura del body
+            panel.querySelectorAll('.slot-team').forEach(team => {
+                const slot = team.closest('.panel-slot');
+                const slotW = (slot ? slot.clientWidth : panel.clientWidth / panel.querySelectorAll('.panel-slot').length) - 12;
+                // Altura disponible: si el slot tiene header, 75% del panel; si no (ronda), 100%
+                const hasHeader = slot && slot.querySelector('.slot-header');
+                const availH = hasHeader ? panelH * 0.75 : panelH * 0.96;
+                // El texto de equipo/ronda puede ocupar hasta 3 líneas
+                const maxByH = Math.max(6, Math.floor((availH / 3) * 0.95));
+                let fs = Math.min(maxByH, 120);
+                team.style.fontSize = fs + 'px';
+                // Reducir hasta que quepa en ancho y alto
+                while (fs > 6 && (team.scrollWidth > slotW || team.scrollHeight > availH)) {
+                    fs--;
+                    team.style.fontSize = fs + 'px';
+                }
+            });
+        }
 
         // Funciones para el overlay de posición
         function hasStoredPosition() {
@@ -697,37 +1558,45 @@
 
         // Función para actualizar el estado clickeable de los logos
         function updateLogosClickableState() {
-            const canStart = !isRunning && timeRemaining === TOTAL_TIME && !endingPhase;
-            [logoLeft, logoCenter, logoRight].forEach(logo => {
-                if (logo) {
+            const timerReady = !isRunning && timeRemaining === TOTAL_TIME && !endingPhase;
+            const canStart = timerReady && (!ledConnected || ledCanStart);
+            const row = document.getElementById('logosRow');
+            if (row) {
+                row.querySelectorAll('img').forEach(img => {
                     if (canStart) {
-                        logo.classList.remove('disabled');
+                        img.classList.remove('disabled');
                     } else {
-                        logo.classList.add('disabled');
+                        img.classList.add('disabled');
                     }
-                }
-            });
+                });
+            }
         }
 
         // Event listeners para iniciar el timer al hacer click en los logos
         function handleLogoClick() {
             // Solo iniciar si el temporizador está sin iniciar
             if (!isRunning && timeRemaining === TOTAL_TIME && !endingPhase) {
+                // Si hay ESP32 conectado, respetar la condición canStart
+                if (ledConnected && !ledCanStart) return;
                 startTimer();
+                // Si hay ESP32 conectado, enviar PARTIDA
+                if (ledConnected) {
+                    channel.postMessage({ type: 'led-start' });
+                }
                 updateLogosClickableState();
             }
         }
 
-        if (logoLeft) logoLeft.addEventListener('click', handleLogoClick);
-        if (logoCenter) logoCenter.addEventListener('click', handleLogoClick);
-        if (logoRight) logoRight.addEventListener('click', handleLogoClick);
-
         // Inicializar estilos y display
         applyBackgroundColor();
         applyBackgroundVisibility();
+        applyLogosStrip();
         applyLogosVisibility();
         applyLogoImages();
+        applyTimerPosition();
         applyFontStyle();
+        applyChromaPanel();
+        applyLogosVerticalStrip();
         updateDisplay();
         updateLogosClickableState();
 
@@ -739,6 +1608,15 @@
         } else {
             hidePositionOverlay();
         }
+
+        // Iniciar el refresco periódico del countdown previo al inicio
+        startCountdownRefresh();
+
+        // Recalcular chroma panel al cambiar tamaño de ventana
+        window.addEventListener('resize', () => {
+            applyChromaPanel();
+            applyLogosVerticalStrip();
+        });
     </script>
 </body>
 </html>

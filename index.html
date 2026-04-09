@@ -1066,6 +1066,12 @@
                 <button id="resetAllButton" class="action-button danger">🗑️ Borrar TODAS las configuraciones</button>
             </div>
 
+            <div class="setting-item" style="gap:8px;flex-wrap:wrap;">
+                <button id="exportConfigButton" class="action-button" style="background:linear-gradient(135deg,#2d7d46 0%,#1e5c32 100%);box-shadow:0 3px 10px rgba(45,125,70,0.3);">💾 Exportar config. JSON</button>
+                <button id="importConfigButton" class="action-button" style="background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);box-shadow:0 3px 10px rgba(30,60,114,0.3);">📂 Importar config. JSON</button>
+                <input type="file" id="importConfigInput" accept=".json" style="display:none;">
+            </div>
+
             <div class="info-section">
                 <strong>ℹ️ Instrucciones:</strong>
                 A. Abre esta página en una ventana independiente que puedas hacer pequeña de modo que sólo se vea el botón.<br>
@@ -1615,6 +1621,81 @@
                 }
             }
         }
+
+        // Exportar configuraciones a JSON
+        const SETTINGS_KEYS = [
+            'announce2min','announce1min','announce30sec','announce10sec',
+            'showLogos','logosMarquee','showBackground','closeAfter30sec',
+            'colorBackground','colorReady','colorNormal','color30sec','color10sec',
+            'fontType','backgroundImagePath',
+            'logosBgColor','logosBgOpacity','logosStripHeight','logosArray',
+            'timerPositionY','timerPositionX','timerWidth',
+            'timerBgColor','timerBgOpacity','timerBgPadding',
+            'timerStrokeColor','timerStrokeWidth','textsStrokeColor','textsStrokeWidth',
+            'partidasPanelHeight','partidasBgColor','partidasBgOpacity',
+            'chromaShow','chromaColor','chromaPosition',
+            'announceTextSize','announceTextColor','announceTextTop','announceTextOffsetX',
+            'announceMaxWidth','announceStrokeColor','announceStrokeWidth','announceMusicVolume',
+            'logosOrientation','logosVerticalWidth',
+            'stateColor0','stateTextColor0','stateColor1','stateTextColor1',
+            'stateColor2','stateTextColor2','stateColor3','stateTextColor3',
+            'stateColor4','stateTextColor4','stateColor5','stateTextColor5'
+        ];
+
+        function exportSettingsJSON() {
+            const data = {};
+            SETTINGS_KEYS.forEach(k => {
+                const v = localStorage.getItem(k);
+                if (v !== null) data[k] = v;
+            });
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'fll-config.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        document.getElementById('exportConfigButton').addEventListener('click', exportSettingsJSON);
+
+        document.getElementById('importConfigButton').addEventListener('click', () => {
+            document.getElementById('importConfigInput').click();
+        });
+
+        document.getElementById('importConfigInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if (typeof data !== 'object' || Array.isArray(data)) throw new Error('Formato inválido');
+                    // Solo importar claves conocidas
+                    Object.entries(data).forEach(([k, v]) => {
+                        if (SETTINGS_KEYS.includes(k)) localStorage.setItem(k, v);
+                    });
+                    loadSettings();
+                    channel.postMessage({ type: 'settings-changed' });
+                    statusInfo.textContent = '✅ Configuración importada correctamente.';
+                    statusInfo.style.backgroundColor = '#d4edda';
+                    setTimeout(() => {
+                        statusInfo.textContent = '⏸️ Sistema en reposo';
+                        statusInfo.style.backgroundColor = '#e8f0ff';
+                    }, 3000);
+                } catch(err) {
+                    statusInfo.textContent = '❌ Error al leer el JSON. Asegúrate de que el archivo es válido.';
+                    statusInfo.style.backgroundColor = '#f8d7da';
+                    setTimeout(() => {
+                        statusInfo.textContent = '⏸️ Sistema en reposo';
+                        statusInfo.style.backgroundColor = '#e8f0ff';
+                    }, 4000);
+                }
+                e.target.value = '';
+            };
+            reader.readAsText(file);
+        });
 
         // Función para restablecer todas las configuraciones
         function resetAllSettings() {

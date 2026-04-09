@@ -83,7 +83,7 @@
             border: none;
             border-radius: 10px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: background-color 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
             flex: 1;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -115,6 +115,23 @@
         #startButton.running:hover {
             background-color: #666666;
             transform: none;
+        }
+
+        @keyframes halo-green {
+            0%   { box-shadow: 0 0 0 0 rgba(0, 200, 80, 0.9); }
+            50%  { box-shadow: 0 0 0 22px rgba(0, 200, 80, 0.3); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 200, 80, 0); }
+        }
+        @keyframes halo-red {
+            0%   { box-shadow: 0 0 0 0 rgba(220, 30, 30, 0.9); }
+            50%  { box-shadow: 0 0 0 22px rgba(220, 30, 30, 0.3); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 30, 30, 0); }
+        }
+        #startButton.halo-green {
+            animation: halo-green 0.6s ease-out 1;
+        }
+        #startButton.halo-red {
+            animation: halo-red 0.6s ease-out 1;
         }
 
         .settings-section {
@@ -607,6 +624,7 @@
             </div>
             <div id="partidasTeamPanel" style="display:none;"></div>
         </div>
+        <div id="nowPlaying" style="text-align:center;font-size:12px;color:#666;padding:2px 0 6px;display:none;">🎵 Sonando: <span id="nowPlayingName"></span></div>
 
         <div class="settings-section" id="esp32ConnectedGroup" style="display:none">
             <div class="settings-header" id="ledsHeader">
@@ -712,6 +730,11 @@
                         <span class="subsection-icon collapsed">▼</span>
                     </div>
                     <div class="subsection-content collapsed">
+                    <div class="setting-item">
+                        <span class="color-label">🎵 Volumen música (%):</span>
+                        <input type="range" id="announceMusicVolume" min="0" max="100" value="100" style="flex:1;cursor:pointer;">
+                        <span id="announceMusicVolumeLabel" style="font-size:12px;color:#555;min-width:36px;text-align:right;">100%</span>
+                    </div>
                     <div class="setting-item">
                         <span class="color-label">📏 Tamaño texto (vw):</span>
                         <input type="range" id="announceTextSize" min="3" max="30" value="10" style="flex:1;cursor:pointer;">
@@ -1072,6 +1095,7 @@
     <audio id="Sound2m" src="resources/sounds/2min.mp3"></audio>
     <audio id="buzzerSound" src="resources/sounds/buzzer.mp3"></audio>
 
+    <script src="resources/musica_intro/songs.js"></script>
     <script>
         const STATES = {
             IDLE: 'idle',
@@ -1084,6 +1108,60 @@
         let statusTimeout = null; // Para controlar el timeout de mensajes de estado
         let settingsTimeout = null; // Para controlar el debounce de configuraciones
         let announceActiveTeam = null; // Equipo anunciado en chroma
+
+        // Música de presentación de equipos
+        const MUSIC_FOLDER = 'resources/musica_intro/';
+        let presentationSongs = (window.PRESENTATION_SONGS_LIST || []).map(f => MUSIC_FOLDER + f);
+        let presentationAudio = null;
+        let presentationSongIndex = 0;
+
+        function updateNowPlaying(name) {
+            const el = document.getElementById('nowPlaying');
+            const span = document.getElementById('nowPlayingName');
+            if (name) {
+                span.textContent = name;
+                el.style.display = '';
+            } else {
+                span.textContent = '';
+                el.style.display = 'none';
+            }
+        }
+
+        function startPresentationMusic() {
+            if (presentationAudio) return;
+            if (!presentationSongs.length) return;
+            const vol = parseInt(document.getElementById('announceMusicVolume').value) / 100;
+            if (vol <= 0) return;
+            const idx = presentationSongIndex % presentationSongs.length;
+            presentationSongIndex++;
+            const src = presentationSongs[idx];
+            presentationAudio = new Audio(src);
+            presentationAudio.loop = true;
+            presentationAudio.volume = vol;
+            presentationAudio.play().catch(e => console.log('Error reproduciendo música de presentación:', e));
+            // Mostrar nombre del archivo (sin carpeta ni extensión)
+            const fileName = decodeURIComponent(src.split('/').pop().replace(/\.mp3$/i, ''));
+            updateNowPlaying(fileName);
+        }
+
+        function stopPresentationMusic() {
+            if (!presentationAudio) return;
+            const audio = presentationAudio;
+            presentationAudio = null;
+            updateNowPlaying(null);
+            const fadeStep = 50;
+            const steps = 5000 / fadeStep;
+            const volDecrement = audio.volume / steps;
+            const fade = setInterval(() => {
+                if (audio.volume - volDecrement <= 0) {
+                    clearInterval(fade);
+                    audio.pause();
+                    audio.currentTime = 0;
+                } else {
+                    audio.volume -= volDecrement;
+                }
+            }, fadeStep);
+        }
 
         const timerButton = document.getElementById('timerButton');
         const startButton = document.getElementById('startButton');
@@ -1160,6 +1238,8 @@
         const announceStrokeColorInput = document.getElementById('announceStrokeColor');
         const announceStrokeWidthInput = document.getElementById('announceStrokeWidth');
         const announceStrokeWidthLabel = document.getElementById('announceStrokeWidthLabel');
+        const announceMusicVolumeInput = document.getElementById('announceMusicVolume');
+        const announceMusicVolumeLabel = document.getElementById('announceMusicVolumeLabel');
 
         // Inputs de orientación de logos vertical
         const logosOrientationInput = document.getElementById('logosOrientation');
@@ -1327,6 +1407,9 @@
             announceStrokeColorInput.value = localStorage.getItem('announceStrokeColor') || '#000000';
             announceStrokeWidthInput.value = parseInt(localStorage.getItem('announceStrokeWidth') || '12');
             announceStrokeWidthLabel.textContent = (announceStrokeWidthInput.value / 100).toFixed(2) + 'em';
+            const savedMusicVol = parseInt(localStorage.getItem('announceMusicVolume') ?? '100');
+            announceMusicVolumeInput.value = savedMusicVol;
+            announceMusicVolumeLabel.textContent = savedMusicVol + '%';
 
             // Cargar orientación de logos
             logosOrientationInput.value = localStorage.getItem('logosOrientation') || 'horizontal';
@@ -1406,6 +1489,7 @@
             localStorage.setItem('announceMaxWidth', announceMaxWidthInput.value);
             localStorage.setItem('announceStrokeColor', announceStrokeColorInput.value);
             localStorage.setItem('announceStrokeWidth', announceStrokeWidthInput.value);
+            localStorage.setItem('announceMusicVolume', announceMusicVolumeInput.value);
 
             // Guardar orientación de logos
             localStorage.setItem('logosOrientation', logosOrientationInput.value);
@@ -1655,6 +1739,11 @@
             announceStrokeWidthLabel.textContent = (this.value / 100).toFixed(2) + 'em';
             saveSettings();
         });
+        announceMusicVolumeInput.addEventListener('input', function() {
+            announceMusicVolumeLabel.textContent = this.value + '%';
+            if (presentationAudio) presentationAudio.volume = this.value / 100;
+            saveSettings();
+        });
 
         // Event listeners de orientación de logos
         logosOrientationInput.addEventListener('change', function() {
@@ -1839,6 +1928,7 @@
                 return;
             }
             // Iniciar timer
+            stopPresentationMusic();
             currentState = STATES.RUNNING;
             updateUI();
             channel.postMessage({ type: 'start-timer' });
@@ -1855,6 +1945,7 @@
                 timerWindow = null;
                 return;
             }
+            stopPresentationMusic();
             currentState = STATES.RUNNING;
             updateUI();
             channel.postMessage({ type: 'start-timer' });
@@ -1886,6 +1977,7 @@
 
             // Limpiar anuncio de equipo
             announceActiveTeam = null;
+            stopPresentationMusic();
             if (typeof window.renderTeamPanel === 'function') window.renderTeamPanel();
 
             // Poner en REPOSO los ESP32 que estén en PARTIDA
@@ -1928,6 +2020,7 @@
                 playSound(event.data.sound);
             } else if (event.data.type === 'timer-started') {
                 // El temporizador se ha iniciado (desde el botón o desde los logos)
+                stopPresentationMusic();
                 currentState = STATES.RUNNING;
                 if (announceActiveTeam) {
                     announceActiveTeam = null;
@@ -2051,9 +2144,11 @@
                     if (announceActiveTeam === team) {
                         announceActiveTeam = null;
                         channel.postMessage({ type: 'team-announce-clear' });
+                        stopPresentationMusic();
                     } else {
                         announceActiveTeam = team;
                         channel.postMessage({ type: 'team-announce', teamName: team, mesaName: mesa });
+                        startPresentationMusic();
                     }
                     renderTeamPanel();
                 });
@@ -2384,7 +2479,7 @@
         function renderEsp32ConfigTable() {
             const tbody = document.getElementById('esp32ConfigBody');
             if (!tbody) return;
-            const config = loadEsp32Config();
+            const config = loadEsp32Config().sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
             tbody.innerHTML = config.map(c => `
                 <tr>
                     <td style="font-family:monospace;font-size:11px;padding:4px 6px;border:1px solid #eee;white-space:nowrap;">${c.id}</td>
@@ -2407,6 +2502,9 @@
                     const cfg = loadEsp32Config();
                     const entry = cfg.find(c => c.id === inp.dataset.id);
                     if (entry) { entry.order = parseInt(inp.value) || 1; saveEsp32Config(cfg); }
+                });
+                inp.addEventListener('change', () => {
+                    renderEsp32ConfigTable();
                 });
             });
             tbody.querySelectorAll('.esp32-toggle-btn').forEach(btn => {
@@ -2603,7 +2701,8 @@
             btnTimekeeperReady.textContent = `TIMEKEEPER ${masterStateName}`;
 
             let statusMsg;
-            if (canStart) {
+            const windowOpen = timerWindow && !timerWindow.closed;
+            if (canStart && windowOpen) {
                 statusMsg = 'Puede iniciar: sí';
             } else {
                 const motivos = [];
@@ -2612,6 +2711,7 @@
                 if (!allTeamReady)      motivos.push('hay leds con equipo sin READY');
                 if (hasPreparacion)     motivos.push('hay leds en PREPARACION/MUST_GO');
                 if (anyPartida)         motivos.push('partida en curso');
+                if (!windowOpen)        motivos.push('ventana temporizador no abierta');
                 statusMsg = 'Puede iniciar: no — ' + (motivos.join(', ') || 'condiciones no cumplidas');
             }
 
@@ -2655,7 +2755,39 @@
                 if (msg.type === 'event') {
                     console.log('[firmware]', JSON.stringify(msg));
                     if (msg.msg === 'start_request_rx') {
-                        triggerStart();
+                        // Calcular si la partida puede iniciar ahora mismo
+                        const onlineNodes = [...ledNodes.values()].filter(n => n.online);
+                        const hasPreparacion = onlineNodes.some(n => n.state === 1 || n.state === 2);
+                        const anyPartida = onlineNodes.some(n => n.state === 4);
+                        const masterNode = ledSelfId ? onlineNodes.find(n => n.id === ledSelfId) : null;
+                        const masterIsReady = masterNode ? masterNode.state === 3 : false;
+                        const allTeamReady = ledAllTeamNodesReady(onlineNodes);
+                        const windowOpen = timerWindow && !timerWindow.closed;
+                        const canFire = currentState === STATES.PREPARED
+                                        && windowOpen
+                                        && ledIsMaster && !hasPreparacion && allTeamReady && masterIsReady && !anyPartida
+                                        && (msg.canStart === 1 || msg.canStart === true);
+
+                        // Halo visual en el botón de inicio
+                        // Usar style.animation en lugar de clases para que no se borre
+                        // cuando updateUI() reasigna startButton.className
+                        const btn = document.getElementById('startButton');
+                        const haloAnim = canFire ? 'halo-green 0.6s ease-out 1' : 'halo-red 0.6s ease-out 1';
+                        const applyHalo = () => {
+                            btn.style.animation = 'none';
+                            void btn.offsetWidth;
+                            btn.style.animation = haloAnim;
+                            btn.addEventListener('animationend', () => {
+                                btn.style.animation = '';
+                            }, { once: true });
+                        };
+
+                        if (canFire) {
+                            triggerStart();
+                            requestAnimationFrame(applyHalo);
+                        } else {
+                            applyHalo();
+                        }
                     }
                 }
                 if (msg.type === "status" && Array.isArray(msg.nodes)) {
@@ -2757,6 +2889,7 @@
             channel.postMessage({ type: 'reset-timer' });
             // Limpiar anuncio de equipo
             announceActiveTeam = null;
+            stopPresentationMusic();
             if (typeof window.renderTeamPanel === 'function') window.renderTeamPanel();
             // Si la ventana del temporizador sigue abierta, quedarse en PREPARADO
             currentState = (timerWindow && !timerWindow.closed) ? STATES.PREPARED : STATES.IDLE;

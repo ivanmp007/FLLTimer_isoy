@@ -415,6 +415,98 @@
             margin-bottom: 0.1em;
         }
 
+        /* Animaciones de anuncio de equipo */
+        @keyframes announce-fadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+        @keyframes announce-zoomIn {
+            from { opacity: 0; transform: translateY(-50%) scale(0.3); }
+            to   { opacity: 1; transform: translateY(-50%) scale(1); }
+        }
+        @keyframes announce-zoomOut {
+            from { opacity: 0; transform: translateY(-50%) scale(2); }
+            to   { opacity: 1; transform: translateY(-50%) scale(1); }
+        }
+        @keyframes announce-slideLeft {
+            from { opacity: 0; transform: translateY(-50%) translateX(-80vw); }
+            to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+        }
+        @keyframes announce-slideRight {
+            from { opacity: 0; transform: translateY(-50%) translateX(80vw); }
+            to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+        }
+        @keyframes announce-bounce {
+            0%   { opacity: 0; transform: translateY(-50%) scale(0.3); }
+            50%  { opacity: 1; transform: translateY(-50%) scale(1.15); }
+            70%  { transform: translateY(-50%) scale(0.9); }
+            100% { transform: translateY(-50%) scale(1); }
+        }
+        @keyframes announce-flipX {
+            from { opacity: 0; transform: translateY(-50%) perspective(600px) rotateX(90deg); }
+            to   { opacity: 1; transform: translateY(-50%) perspective(600px) rotateX(0deg); }
+        }
+        @keyframes announce-dropIn {
+            0%   { opacity: 0; transform: translateY(-150%) scale(1); }
+            60%  { opacity: 1; transform: translateY(-40%) scale(1); }
+            80%  { transform: translateY(-55%) scale(1); }
+            100% { transform: translateY(-50%) scale(1); }
+        }
+        @keyframes announce-rotateIn {
+            from { opacity: 0; transform: translateY(-50%) rotate(-180deg) scale(0.3); }
+            to   { opacity: 1; transform: translateY(-50%) rotate(0deg) scale(1); }
+        }
+        @keyframes announce-slideUp {
+            from { opacity: 0; transform: translateY(80vh); }
+            to   { opacity: 1; transform: translateY(-50%); }
+        }
+        @keyframes announce-elastic {
+            0%   { opacity: 0; transform: translateY(-50%) scale(0); }
+            55%  { opacity: 1; transform: translateY(-50%) scale(1.2); }
+            70%  { transform: translateY(-50%) scale(0.85); }
+            85%  { transform: translateY(-50%) scale(1.05); }
+            100% { transform: translateY(-50%) scale(1); }
+        }
+        @keyframes announce-flipY {
+            from { opacity: 0; transform: translateY(-50%) perspective(600px) rotateY(90deg); }
+            to   { opacity: 1; transform: translateY(-50%) perspective(600px) rotateY(0deg); }
+        }
+        @keyframes announce-expandH {
+            from { opacity: 0; transform: translateY(-50%) scaleX(0); }
+            to   { opacity: 1; transform: translateY(-50%) scaleX(1); }
+        }
+
+        /* Animaciones idle del anuncio (ciclos suaves tras la aparición) */
+        @keyframes idle-breathe {
+            0%, 100% { transform: translateY(-50%) scale(1); }
+            50%       { transform: translateY(-50%) scale(1.035); }
+        }
+        @keyframes idle-fade {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.65; }
+        }
+        @keyframes idle-float {
+            0%, 100% { transform: translateY(-50%); }
+            50%       { transform: translateY(calc(-50% - 8px)); }
+        }
+        @keyframes idle-sway {
+            0%, 100% { transform: translateY(-50%) translateX(0); }
+            25%       { transform: translateY(-50%) translateX(7px); }
+            75%       { transform: translateY(-50%) translateX(-7px); }
+        }
+        @keyframes idle-squish {
+            0%, 100% { transform: translateY(-50%) scaleX(1) scaleY(1); }
+            50%       { transform: translateY(-50%) scaleX(1.04) scaleY(0.97); }
+        }
+        @keyframes idle-glow {
+            0%, 100% { text-shadow: none; }
+            50%       { text-shadow: 0 0 18px rgba(255,255,255,0.45), 0 0 36px rgba(255,255,255,0.2); }
+        }
+        @keyframes idle-letterspace {
+            0%, 100% { letter-spacing: normal; }
+            50%       { letter-spacing: 0.05em; }
+        }
+
         /* Vertical logos strip */
         #logosVerticalStrip {
             position: fixed;
@@ -689,21 +781,108 @@
         let currentAnnounceTeam = null;
         let currentAnnounceMesa = null;
 
-        function applyTeamAnnounce(teamName, mesaName) {
+        const ANNOUNCE_ANIMATIONS = [
+            'announce-fadeIn',
+            'announce-zoomIn',
+            'announce-zoomOut',
+            'announce-slideLeft',
+            'announce-slideRight',
+            'announce-bounce',
+            'announce-flipX',
+            'announce-dropIn',
+            'announce-rotateIn',
+            'announce-slideUp',
+            'announce-elastic',
+            'announce-flipY',
+            'announce-expandH'
+        ];
+
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        let announceAnimQueue = shuffleArray([...ANNOUNCE_ANIMATIONS]);
+
+        // Anima la salida del texto de anuncio hacia su slot en el panel.
+        // Llama a onDone al terminar (o inmediatamente si no hay animación posible).
+        function animateAnnounceExit(onDone) {
             const overlay = document.getElementById('teamAnnounceOverlay');
             const wrapper = document.getElementById('timerWrapper');
+            const textEl = overlay.querySelector('.announce-text');
+            const dismissedTeam = currentAnnounceTeam;
+
+            if (textEl && dismissedTeam) {
+                const slots = document.querySelectorAll('#esp32Panel .panel-slot-mesa');
+                let targetEl = null;
+                slots.forEach(slot => {
+                    const teamDiv = slot.querySelector('.slot-team');
+                    if (teamDiv && teamDiv.textContent.trim() === dismissedTeam.trim()) {
+                        targetEl = teamDiv;
+                    }
+                });
+
+                if (targetEl) {
+                    const srcRect = textEl.getBoundingClientRect();
+                    const dstRect = targetEl.getBoundingClientRect();
+
+                    const scaleX = dstRect.width / (srcRect.width || 1);
+                    const scaleY = dstRect.height / (srcRect.height || 1);
+                    const scale = Math.min(scaleX, scaleY, 1);
+
+                    const srcCX = srcRect.left + srcRect.width / 2;
+                    const srcCY = srcRect.top + srcRect.height / 2;
+                    const dstCX = dstRect.left + dstRect.width / 2;
+                    const dstCY = dstRect.top + dstRect.height / 2;
+                    const dx = dstCX - srcCX;
+                    const dy = dstCY - srcCY;
+
+                    textEl.style.animation = 'none';
+                    textEl.style.position = 'fixed';
+                    textEl.style.left = srcRect.left + 'px';
+                    textEl.style.top = srcRect.top + 'px';
+                    textEl.style.width = srcRect.width + 'px';
+                    textEl.style.height = srcRect.height + 'px';
+                    textEl.style.padding = '0';
+                    textEl.style.transform = 'translate(0, 0) scale(1)';
+                    textEl.style.transition = 'transform 0.8s ease-in-out, opacity 0.8s ease-in-out';
+                    textEl.style.transformOrigin = 'center center';
+
+                    void textEl.offsetWidth;
+
+                    textEl.style.transform = `translate(${dx}px, ${dy}px) scale(${scale.toFixed(4)})`;
+                    textEl.style.opacity = '0.3';
+
+                    let done = false;
+                    const finish = () => {
+                        if (done) return;
+                        done = true;
+                        overlay.style.display = 'none';
+                        overlay.innerHTML = '';
+                        if (onDone) onDone();
+                    };
+                    textEl.addEventListener('transitionend', finish, { once: true });
+                    setTimeout(finish, 900);
+                    return;
+                }
+            }
+
+            // Fallback: sin animación
+            overlay.style.display = 'none';
+            overlay.innerHTML = '';
+            if (onDone) onDone();
+        }
+
+        function showTeamAnnounce(teamName, mesaName) {
+            const overlay = document.getElementById('teamAnnounceOverlay');
+            const wrapper = document.getElementById('timerWrapper');
+            const settings = loadSettings();
 
             currentAnnounceTeam = teamName;
             currentAnnounceMesa = mesaName || null;
-
-            if (!teamName) {
-                overlay.style.display = 'none';
-                overlay.innerHTML = '';
-                if (wrapper) wrapper.style.visibility = '';
-                return;
-            }
-
-            const settings = loadSettings();
 
             if (wrapper) wrapper.style.visibility = 'hidden';
 
@@ -732,6 +911,58 @@
             text.style.paddingLeft = 'calc(' + pad + 'vw + ' + offsetVw + 'vw)';
             text.style.paddingRight = 'calc(' + pad + 'vw - ' + offsetVw + 'vw)';
             overlay.appendChild(text);
+
+            const anim = announceAnimQueue.shift();
+            if (announceAnimQueue.length === 0) announceAnimQueue.push(...shuffleArray([...ANNOUNCE_ANIMATIONS]));
+            text.style.animation = anim + ' 1.4s ease-out forwards';
+
+            // Idle animation sequencer — starts after entry animation finishes
+            const IDLE_ANIMS = [
+                { name: 'idle-breathe',     dur: '3.5s' },
+                { name: 'idle-fade',        dur: '3s'   },
+                { name: 'idle-float',       dur: '3.2s' },
+                { name: 'idle-sway',        dur: '4s'   },
+                { name: 'idle-squish',      dur: '3s'   },
+                { name: 'idle-glow',        dur: '3.2s' },
+                { name: 'idle-letterspace', dur: '3.5s' },
+            ];
+            let lastIdleIdx = -1;
+            function runNextIdle() {
+                if (!text.isConnected) return;
+                let idx;
+                do { idx = Math.floor(Math.random() * IDLE_ANIMS.length); } while (idx === lastIdleIdx);
+                lastIdleIdx = idx;
+                const a = IDLE_ANIMS[idx];
+                text.style.animation = a.name + ' ' + a.dur + ' ease-in-out 1';
+                text.addEventListener('animationend', runNextIdle, { once: true });
+            }
+            text.addEventListener('animationend', runNextIdle, { once: true });
+        }
+
+        function applyTeamAnnounce(teamName, mesaName) {
+            const overlay = document.getElementById('teamAnnounceOverlay');
+            const wrapper = document.getElementById('timerWrapper');
+
+            if (!teamName) {
+                // Limpiar: animar salida y restaurar temporizador
+                animateAnnounceExit(() => {
+                    if (wrapper) wrapper.style.visibility = '';
+                });
+                currentAnnounceTeam = null;
+                currentAnnounceMesa = null;
+                return;
+            }
+
+            // Si hay un equipo ya anunciado, animar su salida antes de mostrar el nuevo
+            if (currentAnnounceTeam && currentAnnounceTeam !== teamName) {
+                animateAnnounceExit(() => {
+                    showTeamAnnounce(teamName, mesaName);
+                });
+                return;
+            }
+
+            // Primer anuncio o re-aplicación del mismo equipo (settings-changed)
+            showTeamAnnounce(teamName, mesaName);
         }
 
         // Aplicar tamaño y estilo de franja de logotipos

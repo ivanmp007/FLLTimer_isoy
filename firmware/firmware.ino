@@ -25,15 +25,15 @@
 
 #define MAX_NODES            20
 #define NODE_TIMEOUT_MS      6000
-#define WEB_MASTER_TIMEOUT   3000
+#define WEB_MASTER_TIMEOUT   7000
 #define BUTTON_DEBOUNCE_MS   30
 #define STARTER_DEBOUNCE_MS  80    // debounce más largo para el pulsador de inicio
 #define LONGPRESS_MS         800
 #define STATUS_HEARTBEAT_MS  5000
-#define STATUS_REQUEST_MS    1500
+#define STATUS_REQUEST_MS    3000
 
 #define MUSTGO_BLINK_MS           200
-#define MUSTGO_DELAY_MS           120000
+#define MUSTGO_DELAY_MS           150000
 #define FINAL_DURATION_MS         20000
 #define PARTIDA_DURATION_MS       150000UL
 #define PARTIDA_BLINK_SLOW_MS     500UL
@@ -125,10 +125,7 @@ bool lastDebouncedStartBtn = false;
 unsigned long lastStartDebounceMs = 0;
 unsigned long startBtnStableHighMs = 0;  // cuándo el pin se estabilizó en HIGH por última vez
 
-#ifdef STARTER_MODE
-// ciclo de colores de prueba: 0=apagado, 1=amarillo, 2=naranja, 3=verde
-uint8_t starterColorIdx = 0;
-#endif
+
 
 // temporizadores
 unsigned long prepTimerStartMs = 0;
@@ -247,7 +244,7 @@ void showStarterIndicator(bool on) {
 }
 #endif
 
-void showPreparacion() {
+void showPcion() {
   fillAllSolid(CRGB(255, 180, 0));
   FastLED.show();
 }
@@ -280,10 +277,11 @@ static inline uint8_t clamp8int(int v) {
 uint8_t getPartidaPhase() {
   if (partidaStartMs == 0) return 0;
   unsigned long elapsed = millis() - partidaStartMs;
-  if (elapsed < 60000UL)  return 0;  // azul/blanco continuo
-  if (elapsed < 120000UL) return 1;  // amarillo continuo
-  if (elapsed < 140000UL) return 2;  // naranja parpadeo lento
-  return 3;                           // naranja parpadeo rapido
+  if (elapsed < 30000UL)  return 0;  // morado           (0-30s)
+  if (elapsed < 90000UL)  return 1;  // azul/blanco       (30-90s, quedan >60s)
+  if (elapsed < 120000UL) return 2;  // amarillo          (90-120s, quedan >30s)
+  if (elapsed < 140000UL) return 3;  // naranja parpadeo lento
+  return 4;                           // naranja parpadeo rapido
 }
 
 void showPartidaPlasma(uint8_t phase) {
@@ -307,17 +305,22 @@ void showPartidaPlasma(uint8_t phase) {
     uint8_t white = clamp8int((int)(255 * n * n));
 
     switch (phase) {
-      case 0: // azul/blanco plasma (guardado, no se usa en fase 0)
+      case 0: // morado
+        leds[i].r = clamp8int((int)(base * 0.55f) + (int)(white * 0.60f));
+        leds[i].g = 0;
+        leds[i].b = base;
+        break;
+      case 1: // azul/blanco plasma
         leds[i].r = white;
         leds[i].g = white;
         leds[i].b = base;
         break;
-      case 1: // amarillo
+      case 2: // amarillo
         leds[i].r = clamp8int((int)base + white);
         leds[i].g = clamp8int((int)(base * 0.75f) + (int)(white * 0.85f));
         leds[i].b = 0;
         break;
-      case 2: // naranja
+      case 3: // naranja
         leds[i].r = clamp8int((int)base + white);
         leds[i].g = clamp8int((int)(base * 0.35f) + (int)(white * 0.40f));
         leds[i].b = 0;
@@ -365,7 +368,7 @@ void applyLocalVisuals(bool force = false) {
       currentState == MUST_GO || currentState == PARTIDA) {
     switch (currentState) {
       case REPOSO:       showReposo(); break;
-      case PREPARACION:  showPreparacion(); break;
+      case PREPARACION:  showPcion(); break;
       case MUST_GO:      showMustGoBlink(); break;
       case READY:        showReady(); break;
       case PARTIDA:      showPartidaPlasma(getPartidaPhase()); break;
@@ -384,7 +387,7 @@ void applyLocalVisuals(bool force = false) {
 
   switch (currentState) {
     case REPOSO:       showReposo(); break;
-    case PREPARACION:  showPreparacion(); break;
+    case PREPARACION:  showPcion(); break;
     case MUST_GO:      showMustGoBlink(); break;
     case READY:        showReady(); break;
     case PARTIDA:      showPartidaPlasma(getPartidaPhase()); break;
@@ -476,15 +479,6 @@ void setLocalState(NodeState s, bool notify) {
 }
 
 void handleShortPress() {
-#ifdef STARTER_MODE
-  // En modo arrancador, ciclar colores de prueba en la tira principal
-  starterColorIdx = (starterColorIdx + 1) % 4;
-  CRGB testColors[] = { CRGB::Black, CRGB(255,180,0), CRGB(255,70,0), CRGB::Green };
-  fillAllSolid(testColors[starterColorIdx]);
-  FastLED.show();
-  return;
-#endif
-
   if (currentState == PARTIDA || currentState == FINAL) return;
 
   switch (currentState) {
@@ -609,15 +603,15 @@ void updatePartidaEffect() {
 
   uint8_t phase = getPartidaPhase();
 
-  if (phase == 2 || phase == 3) {
+  if (phase == 3 || phase == 4) {
     // Plasma naranja restaurado
-    unsigned long blinkInterval = (phase == 2) ? PARTIDA_BLINK_SLOW_MS : PARTIDA_BLINK_FAST_MS;
+    unsigned long blinkInterval = (phase == 3) ? PARTIDA_BLINK_SLOW_MS : PARTIDA_BLINK_FAST_MS;
     if (millis() - lastPartidaBlinkMs >= blinkInterval) {
       lastPartidaBlinkMs = millis();
       partidaBlinkOn = !partidaBlinkOn;
     }
     if (partidaBlinkOn) {
-      showPartidaPlasma(2); // naranja
+      showPartidaPlasma(3); // naranja
     } else {
       FastLED.clear();
       FastLED.show();
@@ -789,17 +783,6 @@ void handleIncomingStatus(const RadioPacket &pkt) {
   if (pkt.senderId == selfId) return;
 
   upsertNode(pkt.senderId, pkt.state, pkt.seq, true, millis());
-
-  StaticJsonDocument<192> doc;
-  doc["type"] = "event";
-  doc["msg"] = "status_rx";
-  doc["from"] = pkt.senderId;
-  doc["state"] = pkt.state;
-  doc["seq"] = pkt.seq;
-  serializeJson(doc, Serial);
-  Serial.println();
-
-  if (isMaster) sendStatusToWeb();
 }
 
 void handleIncomingSetAllState(const RadioPacket &pkt) {
@@ -856,9 +839,13 @@ void handleIncomingCanStart(const RadioPacket &pkt) {
 
 void handleIncomingStartRequest(const RadioPacket &pkt) {
   if (!isMaster) return;
-  if (!canStartFlag) return;
-  // Notificar a la web para que arranque la partida
-  sendEventToWeb("start_request_rx");
+  // Siempre notificar a la web (para log y para que decida si arrancar)
+  StaticJsonDocument<128> doc;
+  doc["type"]     = "event";
+  doc["msg"]      = "start_request_rx";
+  doc["canStart"] = canStartFlag ? 1 : 0;
+  serializeJson(doc, Serial);
+  Serial.println();
 }
 
 void processRxQueue() {
@@ -1167,19 +1154,17 @@ void updateStarterButton() {
   // Flanco de bajada (pulsación) → acción inmediata
   bool stableHighBefore = (millis() - startBtnStableHighMs) >= STARTER_DEBOUNCE_MS;
   if (debouncedStartBtn && !lastDebouncedStartBtn) {
-    {
-      StaticJsonDocument<128> doc;
-      doc["type"]     = "event";
-      doc["msg"]      = "starter_btn_pressed";
-      doc["canStart"] = canStartFlag;
-      doc["isMaster"] = isMaster;
-      serializeJson(doc, Serial);
-      Serial.println();
-    }
-    if (stableHighBefore && canStartFlag) {
-      sendEventToWeb("start_request_rx");
+    if (stableHighBefore) {
       if (!isMaster) {
-        sendStartRequest();
+        sendStartRequest();  // siempre notifica al maestro; él decide si puede arrancar
+      } else {
+        // Si el arrancador ES el maestro, notificar directamente a la web
+        StaticJsonDocument<128> doc;
+        doc["type"]     = "event";
+        doc["msg"]      = "start_request_rx";
+        doc["canStart"] = canStartFlag ? 1 : 0;
+        serializeJson(doc, Serial);
+        Serial.println();
       }
     }
   }

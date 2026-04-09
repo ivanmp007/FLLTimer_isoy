@@ -17,6 +17,7 @@
 
   #statusBar { margin-top: 12px; font-weight: bold; }
   #log {
+    display: none;
     margin-top: 16px;
     background: #111;
     color: #0f0;
@@ -36,6 +37,8 @@
 <button id="btnStart" disabled>PARTIDA</button>
 <button id="btnFin" disabled>FIN</button>
 <button id="btnReset" disabled>REPOSO global</button>
+<button id="btnCanStart" disabled style="background:#c8f7c5">Habilitar arrancador</button>
+<button id="btnToggleLog">Mostrar log</button>
 
 <div id="statusBar">Desconectado</div>
 
@@ -69,13 +72,22 @@ const btnRefresh = document.getElementById("btnRefresh");
 const btnStart = document.getElementById("btnStart");
 const btnFin = document.getElementById("btnFin");
 const btnReset = document.getElementById("btnReset");
+const btnCanStart = document.getElementById("btnCanStart");
+const btnToggleLog = document.getElementById("btnToggleLog");
 const nodesBody = document.getElementById("nodesBody");
 const statusBar = document.getElementById("statusBar");
 const logEl = document.getElementById("log");
 
+let logVisible = false;
+let canStartEnabled = false;
+
 function log(msg) {
+  if (!logVisible) return;
   const ts = new Date().toLocaleTimeString();
   logEl.textContent += `[${ts}] ${msg}\n`;
+  // Limitar a 500 líneas para evitar consumo de memoria
+  const lines = logEl.textContent.split("\n");
+  if (lines.length > 500) logEl.textContent = lines.slice(-500).join("\n");
   logEl.scrollTop = logEl.scrollHeight;
 }
 
@@ -128,6 +140,7 @@ function updateAvailability() {
   btnReset.disabled = !writer || !isMaster;
   btnStart.disabled = !writer || !canStart;
   btnFin.disabled = !writer || !anyPartida;
+  btnCanStart.disabled = !writer || !isMaster;
 
   statusBar.textContent =
     `Conectado: ${writer ? "sí" : "no"} | ` +
@@ -175,6 +188,14 @@ function processLine(line) {
 
     if (msg.type === "event") {
       log(`EVENT ${JSON.stringify(msg)}`);
+      if (msg.msg === "start_request_rx") {
+        if (msg.canStart) {
+          log(">> Arrancador recibido con canStart=1: disparando PARTIDA");
+          sendJson({ cmd: "set_all", state: 4 });
+        } else {
+          log(">> Arrancador recibido pero canStart=0 (usa 'Habilitar arrancador')");
+        }
+      }
       return;
     }
 
@@ -214,7 +235,7 @@ function startClaimHeartbeat() {
   claimTimer = setInterval(async () => {
     if (!writer) return;
     await sendJson({ cmd: "claim_master" });
-  }, 1000);
+  }, 3000);
 }
 
 function startRefreshHeartbeat() {
@@ -223,7 +244,7 @@ function startRefreshHeartbeat() {
   refreshTimer = setInterval(async () => {
     if (!writer) return;
     await sendJson({ cmd: "get_status" });
-  }, 2000);
+  }, 5000);
 }
 
 async function connectSerial() {
@@ -249,6 +270,19 @@ async function connectSerial() {
 }
 
 btnConnect.addEventListener("click", connectSerial);
+
+btnCanStart.addEventListener("click", async () => {
+  canStartEnabled = !canStartEnabled;
+  await sendJson({ cmd: "set_can_start", value: canStartEnabled ? 1 : 0 });
+  btnCanStart.textContent = canStartEnabled ? "Deshabilitar arrancador" : "Habilitar arrancador";
+  btnCanStart.style.background = canStartEnabled ? "#f7c5c5" : "#c8f7c5";
+});
+
+btnToggleLog.addEventListener("click", () => {
+  logVisible = !logVisible;
+  logEl.style.display = logVisible ? "block" : "none";
+  btnToggleLog.textContent = logVisible ? "Ocultar log" : "Mostrar log";
+});
 
 btnRefresh.addEventListener("click", async () => {
   await sendJson({ cmd: "get_status" });
